@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Remote IT Services Marketplace") }} - RemoteBridge{% endblock %}
+
+{% block content %}
+<div class="marketplace-hero panel" style="background: linear-gradient(135deg, rgba(9,105,218,0.12) 0%, rgba(201,138,59,0.08) 100%); padding: 36px; border-radius: 12px; margin-bottom: 28px; text-align: center;">
+  <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 12px; line-height: 1.2;">
+    {{ _("Hire Verified Remote IT Specialists") }}
+  </h1>
+  <p class="subtitle" style="font-size: 16px; max-width: 640px; margin: 0 auto 24px;">
+    {{ _("Connect with top systems administrators, cybersecurity auditors, and network engineers for instant remote support through secure RemoteBridge sessions.") }}
+  </p>
+
+  <form action="{{ url_for('marketplace_web.services_catalog') }}" method="get" class="search-form" style="max-width: 600px; margin: 0 auto; display: flex; gap: 8px;">
+    <input type="text" name="q" placeholder="{{ _('Search services (e.g. Active Directory, VPN, Malware Cleanup)...') }}" style="font-size: 15px; padding: 12px 16px; flex: 1;">
+    <button type="submit" class="btn" style="padding: 12px 24px; font-size: 15px;">{{ _("Search") }}</button>
+  </form>
+  
+  <div style="margin-top: 20px;">
+    <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn btn-quiet" style="font-size: 13.5px;">
+      ⚡ {{ _("Become a Remote IT Provider") }}
+    </a>
+  </div>
+</div>
+
+<div class="section-actions">
+  <h2>{{ _("Browse Categories") }}</h2>
+  <a href="{{ url_for('marketplace_web.services_catalog') }}">{{ _("View All Services") }} &rarr;</a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
+  {% for cat in categories %}
+  <a href="{{ url_for('marketplace_web.services_catalog', category_id=cat.id) }}" class="panel" style="display: block; padding: 18px; text-decoration: none; color: inherit; transition: transform 0.15s ease;">
+    <div style="font-size: 24px; margin-bottom: 8px;">
+      {% if cat.icon == 'monitor' %}💻{% elif cat.icon == 'server' %}🖥️{% elif cat.icon == 'globe' %}🌐{% elif cat.icon == 'shield' %}🛡️{% elif cat.icon == 'database' %}💾{% else %}🔧{% endif %}
+    </div>
+    <div style="font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 4px;">{{ cat.name }}</div>
+    <div style="font-size: 12.5px; color: var(--text-dim);">{{ cat.description }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if featured_services %}
+<div class="section-actions">
+  <h2>{{ _("Featured IT Services") }}</h2>
+  <a href="{{ url_for('marketplace_web.services_catalog', sort_by='relevance') }}">{{ _("Explore Catalog") }} &rarr;</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-bottom: 36px;">
+  {% for srv in featured_services %}
+  <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between; position: relative;">
+    <span class="badge badge-ok" style="position: absolute; top: 16px; right: 16px;">{{ _("Featured") }}</span>
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--panel-border); display: flex; align-items: center; justify-content: center; font-weight: 700;">
+          {{ srv.provider_name[0] }}
+        </div>
+        <div>
+          <a href="{{ url_for('marketplace_web.provider_profile', username=srv.provider_username) }}" style="font-weight: 600; color: var(--text);">
+            {{ srv.provider_name }}
+          </a>
+          {% if srv.verification_status == 'verified' %}
+          <span title="{{ _('Verified Provider') }}" style="color: var(--ok);">✓</span>
+          {% endif %}
+          <div style="font-size: 12px; color: var(--text-dim);">★ {{ srv.provider_rating }} ({{ srv.provider_reviews }})</div>
+        </div>
+      </div>
+      
+      <h3 style="font-size: 16px; margin: 0 0 8px; font-weight: 700;">
+        <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}">{{ srv.title }}</a>
+      </h3>
+      <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+        {{ srv.description }}
+      </p>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--panel-border);">
+      <div style="font-size: 12px; color: var(--text-dim);">⏱️ {{ srv.estimated_minutes }} mins</div>
+      <div style="font-size: 17px; font-weight: 800; color: var(--accent-strong);">
+        ${{ srv.price }} <span style="font-size: 11px; font-weight: 400;">{{ srv.pricing_type }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="section-actions">
+  <h2>{{ _("Top Verified Providers") }}</h2>
+  <a href="{{ url_for('marketplace_web.providers_catalog') }}">{{ _("View All Providers") }} &rarr;</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+  {% for prov in popular_providers %}
+  <div class="panel" style="text-align: center; padding: 20px;">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; margin: 0 auto 12px;">
+      {{ prov.display_name[0] }}
+    </div>
+    <h3 style="font-size: 15px; margin: 0 0 4px;">
+      <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}">{{ prov.display_name }}</a>
+      {% if prov.verification_status == 'verified' %}
+      <span style="color: var(--ok);">✓</span>
+      {% endif %}
+    </h3>
+    <div style="font-size: 12.5px; color: var(--text-dim); margin-bottom: 8px;">{{ prov.headline or _("IT Specialist") }}</div>
+    <div style="font-size: 12px; margin-bottom: 12px;">★ {{ prov.average_rating }} ({{ prov.review_count }} {{ _("reviews") }}) • {{ prov.completed_jobs }} {{ _("jobs") }}</div>
+    <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}" class="btn btn-quiet btn-sm">{{ _("View Profile") }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

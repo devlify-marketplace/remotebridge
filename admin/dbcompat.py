@@ -37,7 +37,14 @@ except ImportError:  # pragma: no cover - exercised only where psycopg is absent
 IntegrityError = (sqlite3.IntegrityError,) + _PG_INTEGRITY
 
 # Tables whose primary key is a serial `id` (so INSERT can RETURNING it).
-_ID_TABLES = {"admin_users", "groups", "devices", "session_events", "api_keys", "feedback"}
+_ID_TABLES = {
+    "admin_users", "groups", "devices", "session_events", "api_keys", "feedback",
+    "marketplace_profiles", "marketplace_categories", "marketplace_services",
+    "marketplace_availability", "marketplace_orders", "marketplace_messages",
+    "marketplace_reviews", "marketplace_reports", "marketplace_notifications",
+    "marketplace_provider_payouts"
+}
+
 _INSERT_RE = re.compile(r"^\s*INSERT\s+INTO\s+([A-Za-z_][A-Za-z0-9_]*)", re.IGNORECASE)
 
 

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Become a Provider") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width: 640px; margin: 40px auto; text-align: center; padding: 36px;">
+  <div style="font-size: 48px; margin-bottom: 16px;">⚡</div>
+  <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 12px;">{{ _("Offer Your Technical IT Services") }}</h1>
+  <p class="subtitle" style="font-size: 15px; margin-bottom: 24px; line-height: 1.6;">
+    {{ _("Monetize your technical skills on the RemoteBridge platform. Provide remote support, network troubleshooting, and server management directly to customers globally.") }}
+  </p>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 28px; text-align: left;">
+    <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--panel-border);">
+      <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px;">1. {{ _("Build Profile") }}</div>
+      <div style="font-size: 12px; color: var(--text-dim);">{{ _("Highlight your skills, background, and specializations.") }}</div>
+    </div>
+    <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--panel-border);">
+      <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px;">2. {{ _("List Services") }}</div>
+      <div style="font-size: 12px; color: var(--text-dim);">{{ _("Set your own prices, duration, and service criteria.") }}</div>
+    </div>
+    <div style="background: var(--bg); padding: 14px; border-radius: 8px; border: 1px solid var(--panel-border);">
+      <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px;">3. {{ _("Get Paid") }}</div>
+      <div style="font-size: 12px; color: var(--text-dim);">{{ _("Deliver remote support & receive payouts safely.") }}</div>
+    </div>
+  </div>
+
+  <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn" style="padding: 12px 28px; font-size: 15px;">
+    🚀 {{ _("Create Provider Profile Now") }}
+  </a>
+</div>
+{% endblock %}

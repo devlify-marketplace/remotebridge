@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Browse Remote IT Services") }} - RemoteBridge{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Remote IT Services") }}</h1>
+    <div class="subtitle">{{ _("Search and filter verified IT assistance and technical services") }}</div>
+  </div>
+</div>
+
+<div class="filter-bar panel" style="padding: 16px;">
+  <form action="{{ url_for('marketplace_web.services_catalog') }}" method="get" style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%; align-items: flex-end;">
+    <div style="flex: 2; min-width: 200px;">
+      <label for="q">{{ _("Keyword Search") }}</label>
+      <input type="text" id="q" name="q" value="{{ query }}" placeholder="{{ _('Search by keyword, skill or provider...') }}">
+    </div>
+    
+    <div>
+      <label for="category_id">{{ _("Category") }}</label>
+      <select id="category_id" name="category_id">
+        <option value="">{{ _("All Categories") }}</option>
+        {% for cat in categories %}
+        <option value="{{ cat.id }}" {{ 'selected' if cat_id == cat.id }}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    
+    <div>
+      <label for="pricing_type">{{ _("Pricing Type") }}</label>
+      <select id="pricing_type" name="pricing_type">
+        <option value="">{{ _("Any") }}</option>
+        <option value="fixed" {{ 'selected' if pricing_type == 'fixed' }}>{{ _("Fixed Price") }}</option>
+        <option value="hourly" {{ 'selected' if pricing_type == 'hourly' }}>{{ _("Hourly Rate") }}</option>
+        <option value="custom_quote" {{ 'selected' if pricing_type == 'custom_quote' }}>{{ _("Custom Quote") }}</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="sort_by">{{ _("Sort By") }}</label>
+      <select id="sort_by" name="sort_by">
+        <option value="relevance" {{ 'selected' if sort_by == 'relevance' }}>{{ _("Featured & Relevance") }}</option>
+        <option value="rating" {{ 'selected' if sort_by == 'rating' }}>{{ _("Highest Rating") }}</option>
+        <option value="price_asc" {{ 'selected' if sort_by == 'price_asc' }}>{{ _("Price: Low to High") }}</option>
+        <option value="price_desc" {{ 'selected' if sort_by == 'price_desc' }}>{{ _("Price: High to Low") }}</option>
+        <option value="newest" {{ 'selected' if sort_by == 'newest' }}>{{ _("Newest First") }}</option>
+      </select>
+    </div>
+    
+    <div>
+      <button type="submit" class="btn">{{ _("Filter") }}</button>
+      <a href="{{ url_for('marketplace_web.services_catalog') }}" class="btn btn-quiet">{{ _("Clear") }}</a>
+    </div>
+  </form>
+</div>
+
+{% if not services %}
+<div class="panel empty">
+  <p>{{ _("No IT services found matching your criteria.") }}</p>
+  <a href="{{ url_for('marketplace_web.services_catalog') }}" class="btn btn-quiet">{{ _("Reset Filters") }}</a>
+</div>
+{% else %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-bottom: 24px;">
+  {% for srv in services %}
+  <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <span class="badge badge-neutral">{{ srv.category_name }}</span>
+        {% if srv.featured %}
+        <span class="badge badge-ok">{{ _("Featured") }}</span>
+        {% endif %}
+      </div>
+      
+      <h3 style="font-size: 16px; margin: 0 0 8px; font-weight: 700;">
+        <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}">{{ srv.title }}</a>
+      </h3>
+      
+      <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 16px; line-clamp: 3; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+        {{ srv.description }}
+      </p>
+      
+      <div style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 4px;">
+        {% for sk in srv.skills[:3] %}
+        <span style="font-size: 11px; background: var(--bg); border: 1px solid var(--panel-border); padding: 2px 6px; border-radius: 4px;">{{ sk }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px; padding-top: 10px; border-top: 1px solid var(--panel-border); margin-bottom: 12px;">
+        <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700;">
+          {{ srv.provider_name[0] }}
+        </div>
+        <div style="font-size: 12.5px; flex: 1;">
+          <a href="{{ url_for('marketplace_web.provider_profile', username=srv.provider_username) }}" style="color: var(--text); font-weight: 600;">
+            {{ srv.provider_name }}
+          </a>
+          {% if srv.verification_status == 'verified' %}
+          <span style="color: var(--ok);">✓</span>
+          {% endif %}
+        </div>
+        <div style="font-size: 12px; color: var(--text-dim);">★ {{ srv.provider_rating }}</div>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 16px; font-weight: 800; color: var(--accent-strong);">${{ srv.price }}</div>
+        <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}" class="btn btn-sm">{{ _("View Details") }}</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div style="display: flex; justify-content: center; gap: 8px; margin-top: 24px;">
+  {% if page > 1 %}
+  <a href="{{ url_for('marketplace_web.services_catalog', page=page-1, q=query, category_id=cat_id, sort_by=sort_by) }}" class="btn btn-quiet btn-sm">&laquo; {{ _("Previous") }}</a>
+  {% endif %}
+  <span style="padding: 4px 12px; font-size: 13px; color: var(--text-dim);">{{ _("Page") }} {{ page }} {{ _("of") }} {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="{{ url_for('marketplace_web.services_catalog', page=page+1, q=query, category_id=cat_id, sort_by=sort_by) }}" class="btn btn-quiet btn-sm">{{ _("Next") }} &raquo;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

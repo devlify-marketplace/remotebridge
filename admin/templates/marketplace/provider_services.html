@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ _("My Service Listings") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("My Service Listings") }}</h1>
+    <div class="subtitle">{{ _("Create and manage your remote support and IT service offerings") }}</div>
+  </div>
+  <div>
+    <a href="{{ url_for('marketplace_web.new_provider_service') }}" class="btn">+ {{ _("Create Service Listing") }}</a>
+  </div>
+</div>
+
+{% if not services %}
+<div class="panel empty">
+  <p>{{ _("You haven't listed any services yet.") }}</p>
+  <a href="{{ url_for('marketplace_web.new_provider_service') }}" class="btn">+ {{ _("Create Your First Service Listing") }}</a>
+</div>
+{% else %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ _("Title") }}</th>
+        <th>{{ _("Category") }}</th>
+        <th>{{ _("Price") }}</th>
+        <th>{{ _("Type") }}</th>
+        <th>{{ _("Est Duration") }}</th>
+        <th>{{ _("Status") }}</th>
+        <th>{{ _("Actions") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in services %}
+      <tr>
+        <td class="font-bold">
+          <a href="{{ url_for('marketplace_web.service_detail', slug=s.slug) }}">{{ s.title }}</a>
+        </td>
+        <td>{{ s.category_name }}</td>
+        <td class="mono font-bold">${{ s.price }} {{ s.currency }}</td>
+        <td>{{ s.pricing_type }}</td>
+        <td>{{ s.estimated_minutes }} mins</td>
+        <td>
+          <span class="badge {% if s.active %}badge-ok{% else %}badge-neutral{% endif %}">
+            {{ _("ACTIVE") if s.active else _("PAUSED") }}
+          </span>
+        </td>
+        <td>
+          <a href="{{ url_for('marketplace_web.edit_provider_service', service_id=s.id) }}" class="btn btn-quiet btn-sm">{{ _("Edit") }}</a>
+          <form action="{{ url_for('marketplace_web.toggle_provider_service', service_id=s.id) }}" method="post" style="display: inline;">
+            <button type="submit" class="btn btn-quiet btn-sm">
+              {% if s.active %}{{ _("Pause") }}{% else %}{{ _("Activate") }}{% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Order") }} #{{ order.order_number }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Order") }} #{{ order.order_number }}</h1>
+    <div class="subtitle">{{ order.title }}</div>
+  </div>
+  <div>
+    <span class="badge {% if order.status == 'completed' %}badge-ok{% elif order.status == 'cancelled' or order.status == 'disputed' %}badge-danger{% else %}badge-neutral{% endif %}" style="font-size: 13px; padding: 6px 12px;">
+      {{ order.status.replace('_', ' ').upper() }}
+    </span>
+    <span class="badge {% if order.payment_status == 'paid' %}badge-ok{% else %}badge-neutral{% endif %}" style="font-size: 13px; padding: 6px 12px; margin-left: 6px;">
+      PAYMENT: {{ order.payment_status.upper() }}
+    </span>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+  <div>
+    <!-- REMOTEBRIDGE SESSION INTEGRATION LAUNCHER -->
+    {% if order.status in ['accepted', 'scheduled', 'in_progress'] %}
+    <div class="panel" style="background: linear-gradient(135deg, rgba(9,105,218,0.15) 0%, rgba(14,17,23,0.95) 100%); border: 2px solid var(--accent);">
+      <h2 style="font-size: 18px; font-weight: 800; color: var(--accent-strong); margin-bottom: 8px;">
+        🖥️ {{ _("RemoteBridge Session Integration") }}
+      </h2>
+      <p style="font-size: 13.5px; margin-bottom: 16px;">
+        {{ _("Launch a secure, short-lived, single-use connection authorization token linked directly to this service order.") }}
+      </p>
+      
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button id="start-session-btn" onclick="startRemoteSession({{ order.id }})" class="btn" style="padding: 10px 20px; font-size: 14px;">
+          🚀 {{ _("Start Remote Session") }}
+        </button>
+        <span id="session-status" style="font-size: 13px; color: var(--text-dim);"></span>
+      </div>
+
+      <div id="session-box" style="display: none; margin-top: 16px; padding: 12px; background: var(--input-bg); border-radius: 6px; border: 1px dashed var(--accent);">
+        <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px;">{{ _("Single-Use Session Authorization Token:") }}</div>
+        <div id="session-token-display" class="mono" style="font-size: 13px; word-break: break-all; color: var(--ok);"></div>
+        <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 6px;">
+          {{ _("Token is valid for 15 minutes and automatically recorded in session history.") }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Problem Description & Order Info -->
+    <div class="panel">
+      <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Service Request Details") }}</h2>
+      <div style="font-size: 14px; white-space: pre-line; line-height: 1.6; color: var(--text); margin-bottom: 16px;">
+        {{ order.description }}
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--panel-border);">
+        <div><strong>{{ _("Target Device:") }}</strong> {{ order.device_id or _("None specified") }}</div>
+        <div><strong>{{ _("Scheduled At:") }}</strong> {{ order.scheduled_at or _("Flexible") }}</div>
+        <div><strong>{{ _("Customer:") }}</strong> {{ order.customer_username }}</div>
+        <div><strong>{{ _("Provider:") }}</strong> {{ order.provider_name }}</div>
+      </div>
+    </div>
+
+    <!-- Messaging Thread -->
+    <div class="panel">
+      <h2 style="font-size: 16px; margin-bottom: 16px;">💬 {{ _("Order Communication Thread") }}</h2>
+      
+      <div id="message-thread" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; max-height: 400px; overflow-y: auto; padding-right: 6px;">
+        {% if not messages %}
+        <div class="empty">{{ _("No messages yet. Send a message below to start communicating.") }}</div>
+        {% else %}
+        {% for msg in messages %}
+        <div style="background: var(--bg); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--panel-border); align-self: {% if msg.sender_id == session.get('user_id') %}flex-end{% else %}flex-start{% endif %}; max-width: 85%;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px;">
+            {{ msg.sender_username }} <span style="font-weight: 400; color: var(--text-dim); margin-left: 6px;">{{ msg.created_at[:16].replace('T', ' ') }}</span>
+          </div>
+          <div style="font-size: 13.5px; color: var(--text);">{{ msg.message }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+
+      <form action="{{ url_for('marketplace_web.order_detail', id=order.id) }}" method="post" id="msg-form">
+        <textarea name="message_text" id="message_text" rows="3" required placeholder="{{ _('Type your message here...') }}"></textarea>
+        <div style="text-align: right; margin-top: 8px;">
+          <button type="button" onclick="sendMessage()" class="btn btn-sm">{{ _("Send Message") }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Actions & Summary Side Panel -->
+  <div>
+    <div class="panel">
+      <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Order Summary") }}</h2>
+      <div style="font-size: 24px; font-weight: 800; color: var(--accent-strong); margin-bottom: 16px;">
+        ${{ order.amount }} <span style="font-size: 13px; color: var(--text-dim);">{{ order.currency }}</span>
+      </div>
+
+      <!-- Action Buttons based on Status & Role -->
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        {% if is_provider and order.status == 'pending' %}
+        <form action="{{ url_for('marketplace_web.provider_accept_order', id=order.id) }}" method="post">
+          <button type="submit" class="btn" style="width: 100%;">✓ {{ _("Accept Order Request") }}</button>
+        </form>
+        <form action="{{ url_for('marketplace_web.provider_reject_order', id=order.id) }}" method="post">
+          <button type="submit" class="btn btn-danger" style="width: 100%;">✕ {{ _("Reject Request") }}</button>
+        </form>
+        {% endif %}
+
+        {% if is_customer and order.payment_status != 'paid' and order.status not in ['cancelled', 'rejected'] %}
+        <form action="{{ url_for('marketplace_web.pay_order', id=order.id) }}" method="post">
+          <button type="submit" class="btn" style="width: 100%; background: var(--ok);">💳 {{ _("Pay Now (${0})", order.amount) }}</button>
+        </form>
+        {% endif %}
+
+        {% if order.status in ['accepted', 'in_progress', 'scheduled'] %}
+        <form action="{{ url_for('marketplace_web.complete_order', id=order.id) }}" method="post">
+          <button type="submit" class="btn btn-quiet" style="width: 100%;">✓ {{ _("Mark as Completed") }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Review Submission for Completed Orders -->
+    {% if is_customer and order.status == 'completed' %}
+    <div class="panel">
+      <h3 style="font-size: 15px; margin-bottom: 10px; font-weight: 700;">★ {{ _("Leave a Review") }}</h3>
+      <form action="{{ url_for('marketplace_web.submit_order_review', id=order.id) }}" method="post">
+        <label for="rating">{{ _("Rating (1-5 Stars)") }}</label>
+        <select id="rating" name="rating" required>
+          <option value="5">⭐⭐⭐⭐⭐ 5 - {{ _("Excellent") }}</option>
+          <option value="4">⭐⭐⭐⭐ 4 - {{ _("Good") }}</option>
+          <option value="3">⭐⭐⭐ 3 - {{ _("Average") }}</option>
+          <option value="2">⭐⭐ 2 - {{ _("Poor") }}</option>
+          <option value="1">⭐ 1 - {{ _("Terrible") }}</option>
+        </select>
+
+        <label for="review">{{ _("Written Review") }}</label>
+        <textarea id="review" name="review" required placeholder="{{ _('Share your feedback about the service provided...') }}"></textarea>
+
+        <button type="submit" class="btn btn-sm" style="width: 100%; margin-top: 10px;">{{ _("Submit Review") }}</button>
+      </form>
+    </div>
+    {% endif %}
+
+    <!-- Open Dispute Option -->
+    {% if order.status in ['accepted', 'in_progress', 'completed'] %}
+    <div class="panel" style="border-color: var(--danger-bg);">
+      <h3 style="font-size: 14px; margin-bottom: 8px; color: var(--danger);">⚠️ {{ _("Need Help or Have a Dispute?") }}</h3>
+      <form action="{{ url_for('marketplace_web.submit_order_dispute', id=order.id) }}" method="post">
+        <input type="text" name="reason" required placeholder="{{ _('Reason (e.g. Unfinished service)...') }}" style="font-size: 12.5px; margin-bottom: 8px;">
+        <textarea name="description" required placeholder="{{ _('Explain the problem...') }}" style="font-size: 12.5px; min-height: 60px;"></textarea>
+        <button type="submit" class="btn btn-danger btn-sm" style="width: 100%; margin-top: 8px;">{{ _("Open Dispute") }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function startRemoteSession(orderId) {
+  const statusEl = document.getElementById('session-status');
+  const box = document.getElementById('session-box');
+  const display = document.getElementById('session-token-display');
+  statusEl.textContent = 'Generating authorization...';
+  
+  fetch('/api/v1/marketplace/sessions/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id: orderId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.session_token) {
+      statusEl.textContent = 'Session Authorized!';
+      display.textContent = data.session_token;
+      box.style.display = 'block';
+    } else {
+      statusEl.textContent = 'Error: ' + (data.message || 'Failed to generate token');
+    }
+  })
+  .catch(err => {
+    statusEl.textContent = 'Network error.';
+  });
+}
+
+function sendMessage() {
+  const input = document.getElementById('message_text');
+  const msg = input.value.trim();
+  if (!msg) return;
+  
+  fetch('/api/v1/marketplace/orders/{{ order.id }}/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: msg })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.message_id) {
+      location.reload();
+    }
+  });
+}
+</script>
+{% endblock %}

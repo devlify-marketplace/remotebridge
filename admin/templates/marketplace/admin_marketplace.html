@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Marketplace Management") }} - RemoteBridge Admin{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Marketplace Platform Management") }}</h1>
+    <div class="subtitle">{{ _("Moderate services, verify providers, manage platform fees, payouts, and disputes") }}</div>
+  </div>
+</div>
+
+<!-- Fee Settings Panel -->
+<div class="panel" style="margin-bottom: 24px;">
+  <h2 style="font-size: 16px; margin-bottom: 12px;">⚙️ {{ _("Platform Commission & Fee Configuration") }}</h2>
+  <form action="{{ url_for('marketplace_web.admin_update_fee_settings') }}" method="post" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+    <div>
+      <label for="percentage">{{ _("Fee Percentage (%)") }}</label>
+      <input type="number" step="0.1" id="percentage" name="percentage" value="{{ fee_config.percentage }}" required style="width: 120px;">
+    </div>
+    <div>
+      <label for="fixed_fee">{{ _("Fixed Fee ($)") }}</label>
+      <input type="number" step="0.01" id="fixed_fee" name="fixed_fee" value="{{ fee_config.fixed_fee }}" required style="width: 120px;">
+    </div>
+    <div>
+      <label for="min_fee">{{ _("Min Fee ($)") }}</label>
+      <input type="number" step="0.01" id="min_fee" name="min_fee" value="{{ fee_config.min_fee }}" required style="width: 120px;">
+    </div>
+    <div>
+      <label for="max_fee">{{ _("Max Fee ($)") }}</label>
+      <input type="number" step="0.01" id="max_fee" name="max_fee" value="{{ fee_config.max_fee }}" required style="width: 120px;">
+    </div>
+    <div>
+      <button type="submit" class="btn">{{ _("Save Fee Config") }}</button>
+    </div>
+  </form>
+</div>
+
+<!-- Admin Section Tabs -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+  <!-- Providers Moderation -->
+  <div class="panel">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">👥 {{ _("Provider Verification & Status") }} ({{ providers|length }})</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>{{ _("Provider") }}</th>
+            <th>{{ _("Verification") }}</th>
+            <th>{{ _("Rating") }}</th>
+            <th>{{ _("Action") }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in providers %}
+          <tr>
+            <td class="font-bold">{{ p.display_name }} (@{{ p.username }})</td>
+            <td>
+              <span class="badge {% if p.verification_status == 'verified' %}badge-ok{% else %}badge-neutral{% endif %}">
+                {{ p.verification_status.upper() }}
+              </span>
+            </td>
+            <td>★ {{ p.average_rating }}</td>
+            <td>
+              <form action="{{ url_for('marketplace_web.admin_verify_provider', id=p.id) }}" method="post" style="display: inline;">
+                <input type="hidden" name="status" value="{% if p.verification_status == 'verified' %}unverified{% else %}verified{% endif %}">
+                <button type="submit" class="btn btn-quiet btn-sm">
+                  {% if p.verification_status == 'verified' %}{{ _("Unverify") }}{% else %}{{ _("Verify") }}{% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Categories Management -->
+  <div class="panel">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">📁 {{ _("Marketplace Categories") }}</h2>
+    <form action="{{ url_for('marketplace_web.admin_create_category') }}" method="post" style="display: flex; gap: 8px; margin-bottom: 16px;">
+      <input type="text" name="name" required placeholder="{{ _('New category name...') }}" style="flex: 1;">
+      <button type="submit" class="btn btn-sm">+ {{ _("Add") }}</button>
+    </form>
+
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      {% for cat in categories %}
+      <div style="background: var(--bg); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--panel-border); display: flex; justify-content: space-between; font-size: 13px;">
+        <span><strong>{{ cat.name }}</strong> (slug: {{ cat.slug }})</span>
+        <span class="badge badge-ok">{{ _("Active") }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Orders & Reports Moderation -->
+<div class="panel">
+  <h2 style="font-size: 16px; margin-bottom: 12px;">📄 {{ _("All Orders & Disputes") }} ({{ orders|length }})</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ _("Order #") }}</th>
+          <th>{{ _("Title") }}</th>
+          <th>{{ _("Customer") }}</th>
+          <th>{{ _("Amount") }}</th>
+          <th>{{ _("Platform Fee") }}</th>
+          <th>{{ _("Status") }}</th>
+          <th>{{ _("Actions") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in orders %}
+        <tr>
+          <td class="mono font-bold"><a href="{{ url_for('marketplace_web.order_detail', id=o.id) }}">#{{ o.order_number }}</a></td>
+          <td>{{ o.title }}</td>
+          <td>{{ o.customer_username }}</td>
+          <td class="mono">${{ o.amount }}</td>
+          <td class="mono" style="color: var(--ok);">${{ o.platform_fee }}</td>
+          <td>
+            <span class="badge {% if o.status == 'completed' %}badge-ok{% elif o.status == 'disputed' %}badge-danger{% else %}badge-neutral{% endif %}">
+              {{ o.status.upper() }}
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('marketplace_web.order_detail', id=o.id) }}" class="btn btn-quiet btn-sm">{{ _("View Details") }}</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

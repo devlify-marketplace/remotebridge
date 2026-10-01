@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Provider Profile Settings") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Provider Profile Settings") }}</h1>
+    <div class="subtitle">{{ _("Set up your public IT specialist persona, skills, location, and credentials") }}</div>
+  </div>
+</div>
+
+<div class="panel" style="max-width: 720px; margin: 0 auto;">
+  <form action="{{ url_for('marketplace_web.edit_provider_profile') }}" method="post">
+    <label for="display_name">{{ _("Display Name / Company Name") }} *</label>
+    <input type="text" id="display_name" name="display_name" value="{{ provider.display_name if provider else '' }}" required placeholder="{{ _('e.g. Alex Rivera, CISSP or Apex Cloud Solutions') }}">
+
+    <label for="headline">{{ _("Professional Headline") }}</label>
+    <input type="text" id="headline" name="headline" value="{{ provider.headline if provider else '' }}" placeholder="{{ _('e.g. Senior Network Security Engineer & Linux Admin') }}">
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <label for="country">{{ _("Country") }}</label>
+        <input type="text" id="country" name="country" value="{{ provider.country if provider else '' }}" placeholder="{{ _('e.g. United States') }}">
+      </div>
+      <div>
+        <label for="city">{{ _("City") }}</label>
+        <input type="text" id="city" name="city" value="{{ provider.city if provider else '' }}" placeholder="{{ _('e.g. San Francisco') }}">
+      </div>
+    </div>
+
+    <label for="bio">{{ _("Full Bio & Background Experience") }}</label>
+    <textarea id="bio" name="bio" rows="5" placeholder="{{ _('Describe your technical certifications, background, years of experience, and IT specializations...') }}">{{ provider.bio if provider else '' }}</textarea>
+
+    <label for="skills">{{ _("Specialized Skills (Comma-separated)") }}</label>
+    <input type="text" id="skills" name="skills" value="{{ (provider.skills|join(', ')) if provider and provider.skills else '' }}" placeholder="{{ _('e.g. Active Directory, VAAPI Streaming, Docker, WireGuard, VA Audit') }}">
+
+    <label for="languages">{{ _("Spoken Languages (Comma-separated)") }}</label>
+    <input type="text" id="languages" name="languages" value="{{ (provider.languages|join(', ')) if provider and provider.languages else 'English' }}" placeholder="{{ _('e.g. English, Spanish, German') }}">
+
+    <div style="margin-top: 24px; display: flex; gap: 12px;">
+      <button type="submit" class="btn">{{ _("Save Profile") }}</button>
+      <a href="{{ url_for('marketplace_web.provider_dashboard') }}" class="btn btn-quiet">{{ _("Cancel") }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

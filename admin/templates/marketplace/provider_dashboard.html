@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Provider Dashboard") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Provider Dashboard") }}</h1>
+    <div class="subtitle">{{ _("Manage your incoming service requests, active sessions, and service catalog") }}</div>
+  </div>
+  <div>
+    <a href="{{ url_for('marketplace_web.new_provider_service') }}" class="btn">+ {{ _("Create New Service") }}</a>
+    <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn btn-quiet">⚙️ {{ _("Edit Profile") }}</a>
+  </div>
+</div>
+
+<!-- Key Performance Metrics Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px;">
+  <div class="panel" style="text-align: center; padding: 20px;">
+    <div style="font-size: 28px; font-weight: 800; color: var(--accent-strong);">${{ "%.2f"|format(total_earnings) }}</div>
+    <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Total Earnings") }}</div>
+  </div>
+  <div class="panel" style="text-align: center; padding: 20px;">
+    <div style="font-size: 28px; font-weight: 800; color: var(--text);">{{ pending_requests|length }}</div>
+    <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Pending Requests") }}</div>
+  </div>
+  <div class="panel" style="text-align: center; padding: 20px;">
+    <div style="font-size: 28px; font-weight: 800; color: var(--ok);">{{ active_jobs|length }}</div>
+    <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Active Jobs") }}</div>
+  </div>
+  <div class="panel" style="text-align: center; padding: 20px;">
+    <div style="font-size: 28px; font-weight: 800; color: var(--text);">★ {{ provider.average_rating }}</div>
+    <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Rating ({0} reviews)", provider.review_count) }}</div>
+  </div>
+</div>
+
+<!-- Pending Requests Table -->
+{% if pending_requests %}
+<div class="panel" style="margin-bottom: 24px; border-color: var(--accent);">
+  <h2 style="font-size: 16px; margin-bottom: 12px; color: var(--accent-strong);">⚡ {{ _("Pending Service Requests") }}</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>{{ _("Order #") }}</th>
+          <th>{{ _("Service Title") }}</th>
+          <th>{{ _("Customer") }}</th>
+          <th>{{ _("Amount") }}</th>
+          <th>{{ _("Date") }}</th>
+          <th>{{ _("Actions") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in pending_requests %}
+        <tr>
+          <td class="mono font-bold"><a href="{{ url_for('marketplace_web.order_detail', id=req.id) }}">#{{ req.order_number }}</a></td>
+          <td>{{ req.title }}</td>
+          <td>{{ req.customer_username }}</td>
+          <td class="mono">${{ req.amount }}</td>
+          <td class="muted">{{ req.created_at[:10] }}</td>
+          <td>
+            <form action="{{ url_for('marketplace_web.provider_accept_order', id=req.id) }}" method="post" style="display: inline;">
+              <button type="submit" class="btn btn-sm">✓ {{ _("Accept") }}</button>
+            </form>
+            <form action="{{ url_for('marketplace_web.provider_reject_order', id=req.id) }}" method="post" style="display: inline;">
+              <button type="submit" class="btn btn-danger btn-sm">✕ {{ _("Reject") }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Active Jobs & Services Grid -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+  <div class="panel">
+    <h2 style="font-size: 16px; margin-bottom: 12px;">🛠️ {{ _("Active Service Jobs") }}</h2>
+    {% if not active_jobs %}
+    <div class="empty">{{ _("No active jobs right now.") }}</div>
+    {% else %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {% for job in active_jobs %}
+      <div style="background: var(--bg); border: 1px solid var(--panel-border); padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 14px;"><a href="{{ url_for('marketplace_web.order_detail', id=job.id) }}">#{{ job.order_number }} - {{ job.title }}</a></div>
+          <div style="font-size: 12px; color: var(--text-dim);">{{ _("Customer:") }} {{ job.customer_username }} • ${{ job.amount }}</div>
+        </div>
+        <a href="{{ url_for('marketplace_web.order_detail', id=job.id) }}" class="btn btn-sm">{{ _("Manage Session") }}</a>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="font-size: 16px; margin: 0;">📋 {{ _("My Service Listings") }}</h2>
+      <a href="{{ url_for('marketplace_web.provider_services') }}" style="font-size: 13px;">{{ _("Manage All") }} &rarr;</a>
+    </div>
+    {% if not services %}
+    <div class="empty">
+      <p>{{ _("You haven't listed any services yet.") }}</p>
+      <a href="{{ url_for('marketplace_web.new_provider_service') }}" class="btn btn-sm">+ {{ _("Add Your First Service") }}</a>
+    </div>
+    {% else %}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {% for srv in services[:5] %}
+      <div style="background: var(--bg); border: 1px solid var(--panel-border); padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <div style="font-weight: 700; font-size: 13.5px;">{{ srv.title }}</div>
+          <div style="font-size: 12px; color: var(--text-dim);">${{ srv.price }} • {{ srv.category_name }}</div>
+        </div>
+        <span class="badge {% if srv.active %}badge-ok{% else %}badge-neutral{% endif %}">
+          {{ _("ACTIVE") if srv.active else _("PAUSED") }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

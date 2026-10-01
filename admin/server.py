@@ -51,8 +51,13 @@ import store
 import policy as policy_mod
 import relayauth
 import wol
+from marketplace_api import marketplace_api_bp
+from marketplace_views import marketplace_web_bp
 
 app = Flask(__name__)
+app.register_blueprint(marketplace_api_bp)
+app.register_blueprint(marketplace_web_bp)
+
 
 # Hosting behind a TLS-terminating proxy (Render, Fly, nginx...): trust one hop of X-Forwarded-*
 # so request.remote_addr / url_for() see the real client and https, and mark the session cookie

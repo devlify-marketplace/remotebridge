@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Verified Remote IT Specialists") }} - RemoteBridge{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Verified Remote IT Providers") }}</h1>
+    <div class="subtitle">{{ _("Find experienced systems administrators, cybersecurity pros, and support engineers") }}</div>
+  </div>
+</div>
+
+<div class="filter-bar panel" style="padding: 16px;">
+  <form action="{{ url_for('marketplace_web.providers_catalog') }}" method="get" style="display: flex; gap: 12px; flex-wrap: wrap; width: 100%; align-items: flex-end;">
+    <div style="flex: 2; min-width: 200px;">
+      <label for="q">{{ _("Search Specialist") }}</label>
+      <input type="text" id="q" name="q" value="{{ search }}" placeholder="{{ _('Search provider by name, skill or title...') }}">
+    </div>
+    
+    <div>
+      <label for="country">{{ _("Country") }}</label>
+      <input type="text" id="country" name="country" value="{{ country }}" placeholder="{{ _('e.g. United States, Germany...') }}">
+    </div>
+
+    <div>
+      <button type="submit" class="btn">{{ _("Filter Providers") }}</button>
+      <a href="{{ url_for('marketplace_web.providers_catalog') }}" class="btn btn-quiet">{{ _("Clear") }}</a>
+    </div>
+  </form>
+</div>
+
+{% if not providers %}
+<div class="panel empty">
+  <p>{{ _("No IT providers found matching your search.") }}</p>
+</div>
+{% else %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+  {% for prov in providers %}
+  <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between; text-align: center; padding: 24px;">
+    <div>
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 700; margin: 0 auto 14px;">
+        {{ prov.display_name[0] }}
+      </div>
+      <h3 style="font-size: 17px; margin: 0 0 4px; font-weight: 700;">
+        <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}">{{ prov.display_name }}</a>
+        {% if prov.verification_status == 'verified' %}
+        <span style="color: var(--ok);" title="{{ _('Verified Provider') }}">✓</span>
+        {% endif %}
+      </h3>
+      <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">{{ prov.headline or _("Remote Support Specialist") }}</div>
+      
+      <div style="font-size: 12.5px; color: var(--text-dim); margin-bottom: 14px;">
+        📍 {{ prov.city or '' }} {{ prov.country or '' }} • ★ {{ prov.average_rating }} ({{ prov.review_count }})
+      </div>
+
+      {% if prov.skills %}
+      <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-bottom: 16px;">
+        {% for sk in prov.skills[:3] %}
+        <span style="font-size: 11px; background: var(--bg); border: 1px solid var(--panel-border); padding: 2px 8px; border-radius: 4px;">{{ sk }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div>
+      <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}" class="btn btn-quiet" style="width: 100%;">
+        {{ _("View Profile & Services") }}
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

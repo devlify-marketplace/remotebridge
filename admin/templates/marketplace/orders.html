@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ _("My Marketplace Orders") }} - RemoteBridge{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("My Service Requests & Orders") }}</h1>
+    <div class="subtitle">{{ _("Track ongoing IT assistance, pending approvals, and past services") }}</div>
+  </div>
+</div>
+
+{% if not orders %}
+<div class="panel empty">
+  <p>{{ _("You haven't requested any marketplace services yet.") }}</p>
+  <a href="{{ url_for('marketplace_web.services_catalog') }}" class="btn">{{ _("Browse IT Services Catalog") }}</a>
+</div>
+{% else %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ _("Order #") }}</th>
+        <th>{{ _("Service Title") }}</th>
+        <th>{{ _("Provider") }}</th>
+        <th>{{ _("Amount") }}</th>
+        <th>{{ _("Status") }}</th>
+        <th>{{ _("Payment") }}</th>
+        <th>{{ _("Created") }}</th>
+        <th>{{ _("Actions") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr>
+        <td class="mono font-bold">
+          <a href="{{ url_for('marketplace_web.order_detail', id=o.id) }}">#{{ o.order_number }}</a>
+        </td>
+        <td class="font-bold">{{ o.title }}</td>
+        <td>{{ o.provider_name }}</td>
+        <td class="mono">${{ o.amount }}</td>
+        <td>
+          <span class="badge {% if o.status == 'completed' %}badge-ok{% elif o.status == 'cancelled' or o.status == 'disputed' %}badge-danger{% else %}badge-neutral{% endif %}">
+            {{ o.status.replace('_', ' ').upper() }}
+          </span>
+        </td>
+        <td>
+          <span class="badge {% if o.payment_status == 'paid' %}badge-ok{% else %}badge-neutral{% endif %}">
+            {{ o.payment_status.upper() }}
+          </span>
+        </td>
+        <td class="muted">{{ o.created_at[:10] }}</td>
+        <td>
+          <a href="{{ url_for('marketplace_web.order_detail', id=o.id) }}" class="btn btn-quiet btn-sm">{{ _("Manage") }}</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

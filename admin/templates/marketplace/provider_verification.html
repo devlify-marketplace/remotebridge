@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Provider Verification") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Provider Badge Verification") }}</h1>
+    <div class="subtitle">{{ _("Request official verified status for higher visibility and customer trust") }}</div>
+  </div>
+</div>
+
+<div class="panel" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 28px;">
+  <div style="font-size: 36px; margin-bottom: 12px;">✓</div>
+  <h2 style="font-size: 18px; margin-bottom: 12px;">{{ _("Verification Status:") }} <span class="badge {% if provider.verification_status == 'verified' %}badge-ok{% else %}badge-neutral{% endif %}">{{ provider.verification_status.upper() }}</span></h2>
+  
+  <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6;">
+    {{ _("Verified providers gain a distinct checkmark badge on all listings, priority search ranking, and higher buyer conversion rates.") }}
+  </p>
+
+  {% if provider.verification_status == 'unverified' %}
+  <form action="{{ url_for('marketplace_web.provider_verification') }}" method="post">
+    <button type="submit" class="btn">🚀 {{ _("Submit Request for Admin Review") }}</button>
+  </form>
+  {% elif provider.verification_status == 'pending' %}
+  <div style="padding: 12px; background: var(--bg); border: 1px solid var(--panel-border); border-radius: 6px; font-size: 13.5px; color: var(--text-dim);">
+    {{ _("Your verification request is currently under review by RemoteBridge administrators.") }}
+  </div>
+  {% else %}
+  <div style="padding: 12px; background: rgba(9,105,218,0.1); border: 1px solid var(--ok); border-radius: 6px; font-size: 14px; color: var(--ok); font-weight: 700;">
+    ✓ {{ _("Your provider account is fully verified!") }}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

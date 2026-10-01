@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Saved Favorites") }} - RemoteBridge Marketplace{% endblock %}
+
+{% block content %}
+<div class="section-actions">
+  <div>
+    <h1>{{ _("Saved Favorite Services") }}</h1>
+    <div class="subtitle">{{ _("Quick access to your bookmarked IT service offerings") }}</div>
+  </div>
+</div>
+
+{% if not favorites %}
+<div class="panel empty">
+  <p>{{ _("You haven't saved any favorite services yet.") }}</p>
+  <a href="{{ url_for('marketplace_web.services_catalog') }}" class="btn">{{ _("Browse IT Services Catalog") }}</a>
+</div>
+{% else %}
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+  {% for srv in favorites %}
+  <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">{{ srv.category_name }} • {{ srv.provider_name }}</div>
+      <h3 style="font-size: 16px; margin: 0 0 8px; font-weight: 700;">
+        <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}">{{ srv.title }}</a>
+      </h3>
+      <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 16px;">{{ srv.description[:120] }}...</p>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--panel-border); padding-top: 12px;">
+      <div style="font-size: 16px; font-weight: 800; color: var(--accent-strong);">${{ srv.price }}</div>
+      <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}" class="btn btn-sm">{{ _("View & Order") }}</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

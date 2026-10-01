@@ -176,7 +176,188 @@ _SCHEMA = """
             created_at TEXT NOT NULL,
             PRIMARY KEY (device_id, viewer_id)
         );
+
+        CREATE TABLE IF NOT EXISTS marketplace_profiles (
+            id {PK},
+            user_id INTEGER UNIQUE NOT NULL REFERENCES admin_users(id),
+            display_name TEXT NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            profile_photo TEXT,
+            headline TEXT,
+            bio TEXT,
+            country TEXT,
+            city TEXT,
+            languages TEXT,
+            skills TEXT,
+            verification_status TEXT NOT NULL DEFAULT 'unverified',
+            provider_status TEXT NOT NULL DEFAULT 'active',
+            average_rating DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+            review_count INTEGER NOT NULL DEFAULT 0,
+            completed_jobs INTEGER NOT NULL DEFAULT 0,
+            response_time TEXT DEFAULT '1 hour',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_profiles_username ON marketplace_profiles(username);
+        CREATE INDEX IF NOT EXISTS idx_mp_profiles_status ON marketplace_profiles(verification_status, provider_status);
+
+        CREATE TABLE IF NOT EXISTS marketplace_categories (
+            id {PK},
+            name TEXT UNIQUE NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            description TEXT,
+            icon TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_cats_slug ON marketplace_categories(slug);
+
+        CREATE TABLE IF NOT EXISTS marketplace_services (
+            id {PK},
+            provider_id INTEGER NOT NULL REFERENCES marketplace_profiles(id),
+            category_id INTEGER NOT NULL REFERENCES marketplace_categories(id),
+            title TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            description TEXT NOT NULL,
+            price DOUBLE PRECISION NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'USD',
+            pricing_type TEXT NOT NULL DEFAULT 'fixed',
+            estimated_minutes INTEGER NOT NULL DEFAULT 60,
+            requirements TEXT,
+            active INTEGER NOT NULL DEFAULT 1,
+            featured INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_services_slug ON marketplace_services(slug);
+        CREATE INDEX IF NOT EXISTS idx_mp_services_category ON marketplace_services(category_id, active);
+        CREATE INDEX IF NOT EXISTS idx_mp_services_provider ON marketplace_services(provider_id, active);
+
+        CREATE TABLE IF NOT EXISTS marketplace_service_skills (
+            service_id INTEGER NOT NULL REFERENCES marketplace_services(id) ON DELETE CASCADE,
+            skill TEXT NOT NULL,
+            PRIMARY KEY (service_id, skill)
+        );
+
+        CREATE TABLE IF NOT EXISTS marketplace_availability (
+            id {PK},
+            provider_id INTEGER NOT NULL REFERENCES marketplace_profiles(id),
+            day_of_week INTEGER NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            timezone TEXT NOT NULL DEFAULT 'UTC',
+            active INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_avail_provider ON marketplace_availability(provider_id, day_of_week);
+
+        CREATE TABLE IF NOT EXISTS marketplace_orders (
+            id {PK},
+            customer_id INTEGER NOT NULL REFERENCES admin_users(id),
+            provider_id INTEGER NOT NULL REFERENCES marketplace_profiles(id),
+            service_id INTEGER NOT NULL REFERENCES marketplace_services(id),
+            order_number TEXT UNIQUE NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            device_id TEXT,
+            amount DOUBLE PRECISION NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'USD',
+            platform_fee DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+            provider_amount DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+            status TEXT NOT NULL DEFAULT 'pending',
+            payment_status TEXT NOT NULL DEFAULT 'unpaid',
+            scheduled_at TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            cancelled_at TEXT,
+            disputed_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_orders_customer ON marketplace_orders(customer_id, status);
+        CREATE INDEX IF NOT EXISTS idx_mp_orders_provider ON marketplace_orders(provider_id, status);
+        CREATE INDEX IF NOT EXISTS idx_mp_orders_number ON marketplace_orders(order_number);
+
+        CREATE TABLE IF NOT EXISTS marketplace_messages (
+            id {PK},
+            order_id INTEGER NOT NULL REFERENCES marketplace_orders(id),
+            sender_id INTEGER NOT NULL REFERENCES admin_users(id),
+            message TEXT NOT NULL,
+            attachment_metadata TEXT,
+            read_at TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_messages_order ON marketplace_messages(order_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS marketplace_reviews (
+            id {PK},
+            order_id INTEGER UNIQUE NOT NULL REFERENCES marketplace_orders(id),
+            customer_id INTEGER NOT NULL REFERENCES admin_users(id),
+            provider_id INTEGER NOT NULL REFERENCES marketplace_profiles(id),
+            rating INTEGER NOT NULL,
+            review TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_reviews_provider ON marketplace_reviews(provider_id, rating);
+
+        CREATE TABLE IF NOT EXISTS marketplace_favorites (
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            service_id INTEGER NOT NULL REFERENCES marketplace_services(id),
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, service_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS marketplace_reports (
+            id {PK},
+            reporter_id INTEGER NOT NULL REFERENCES admin_users(id),
+            reported_user_id INTEGER,
+            service_id INTEGER,
+            order_id INTEGER,
+            reason TEXT NOT NULL,
+            description TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'open',
+            created_at TEXT NOT NULL,
+            resolved_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS marketplace_notifications (
+            id {PK},
+            user_id INTEGER NOT NULL REFERENCES admin_users(id),
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            related_order_id INTEGER,
+            read_at TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_notifs_user ON marketplace_notifications(user_id, read_at);
+
+        CREATE TABLE IF NOT EXISTS marketplace_provider_payouts (
+            id {PK},
+            provider_id INTEGER NOT NULL REFERENCES marketplace_profiles(id),
+            order_id INTEGER NOT NULL REFERENCES marketplace_orders(id),
+            amount DOUBLE PRECISION NOT NULL,
+            currency TEXT NOT NULL DEFAULT 'USD',
+            status TEXT NOT NULL DEFAULT 'pending',
+            payout_reference TEXT,
+            created_at TEXT NOT NULL,
+            paid_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_payouts_provider ON marketplace_provider_payouts(provider_id, status);
+
+        CREATE TABLE IF NOT EXISTS marketplace_session_tokens (
+            token TEXT PRIMARY KEY,
+            order_id INTEGER NOT NULL REFERENCES marketplace_orders(id),
+            customer_id INTEGER NOT NULL,
+            provider_id INTEGER NOT NULL,
+            device_id TEXT NOT NULL,
+            allowed_capabilities TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            used_at TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_mp_session_tokens_expires ON marketplace_session_tokens(expires_at);
     """
+
 
 
 def _pk(conn) -> str:
@@ -207,7 +388,14 @@ def init_db(db_path: str = DB_PATH):
     if get_group_by_name(conn, DEFAULT_GROUP_NAME) is None:
         create_group(conn, DEFAULT_GROUP_NAME, {})  # {} -> all columns keep their permissive defaults
 
+    try:
+        import marketplace_store
+        marketplace_store.seed_default_categories(conn)
+    except Exception:
+        pass
+
     return conn
+
 
 
 def _ensure_column(conn, table: str, column: str, coltype_and_default: str) -> None:
