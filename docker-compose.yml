@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: remotebridge-db
+    restart: always
+    environment:
+      POSTGRES_DB: remotebridge
+      POSTGRES_USER: remotebridge
+      POSTGRES_PASSWORD: remotebridge_secure_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U remotebridge -d remotebridge"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  admin:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.admin
+    container_name: remotebridge-admin
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_TEST_URL: postgresql://remotebridge:remotebridge_secure_password@db:5432/remotebridge
+      REMOTEBRIDGE_REQUIRE_2FA: "0"
+      REMOTEBRIDGE_BEHIND_PROXY: "1"
+    ports:
+      - "8443:8443"
+
+  relay:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: remotebridge-relay
+    restart: always
+    environment:
+      RELAY_SECRET: "production-relay-secret-token"
+    ports:
+      - "6000:6000"
+      - "6443:6443"
+
+volumes:
+  pgdata:

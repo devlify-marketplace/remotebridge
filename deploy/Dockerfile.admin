@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY admin/requirements.txt ./admin_requirements.txt
+RUN pip install --no-cache-dir -r admin_requirements.txt psycopg2-binary gunicorn
+
+COPY admin ./admin
+COPY desktop ./desktop
+
+EXPOSE 8443
+
+CMD ["python3", "admin/server.py", "--port", "8443"]

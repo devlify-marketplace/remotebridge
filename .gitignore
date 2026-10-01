@@ -11,4 +11,8 @@ sessions.log
 .dart_tool/
 .pub-cache/
 build/
+dist/
+build_pyinstaller/
+*.spec
 *.log
+
