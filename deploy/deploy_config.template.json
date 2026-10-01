@@ -1,0 +1,5 @@
+{
+  "_comment": "Fill in admin_url and enrollment_key from your admin console's Deployment page (http://<your-admin-console>/deployment), then remove this _comment line - it's ignored by the loader either way, but a real JSON file shouldn't need it. device_id is optional; omit it and each host will fall back to --id, or you can assign one per machine here if you're templating this file per-device rather than per-org.",
+  "admin_url": "http://admin.example.org:8443",
+  "enrollment_key": "paste-your-org-enrollment-key-here"
+}

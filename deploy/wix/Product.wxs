@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Phase 10 - WiX Toolset (v3.x) source for the host's MSI.
+
+  NOT RUN in the environment this was written in (no WiX Toolset, no
+  Windows, no network to install either - see ../README.md). Written
+  against WiX v3's documented schema and reviewed by hand; treat it as
+  reviewed, not proven, until it's actually built with candle/light on a
+  real Windows machine. If your org has standardized on WiX v4/v5
+  instead, the element names below are mostly the same but the CLI
+  (`wix build`) and a few attributes differ - see WiX's own migration
+  notes rather than assuming this file works unmodified there.
+
+  What this installs:
+    - RemoteBridgeHost.exe (built by ../pyinstaller/host.spec) and
+      deploy_config.json (see ../deploy_config.template.json) into
+      Program Files
+    - A Start Menu shortcut
+    - A clean uninstall entry (Windows Installer handles this for free)
+
+  What this deliberately does NOT do (see ../README.md's Known
+  Limitations): install as a Windows service, run at every login, or
+  bake a specific admin_url/enrollment_key into the .wxs itself - IT
+  fills those into deploy_config.json per-org before building, so the
+  same .wxs works for every org without editing XML.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <!--
+    UpgradeCode must stay this exact value across every future version -
+    it is how Windows Installer recognizes "this MSI is a newer build of
+    the same product" and offers a clean in-place upgrade instead of a
+    conflicting parallel install. Generated once for this project; never
+    regenerate it.
+  -->
+  <Product Id="*"
+           Name="RemoteBridge Host"
+           Language="1033"
+           Version="12.0.0.0"
+           Manufacturer="RemoteBridge"
+           UpgradeCode="024FAC0E-1F7E-4C48-99D2-B30911B3331D">
+
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"
+             Description="RemoteBridge Host installer" />
+
+    <MajorUpgrade DowngradeErrorMessage=
+      "A newer version of RemoteBridge Host is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!--
+      This MSI-level upgrade path is for IT pushing a new build via
+      SCCM/Intune/GPO - a separate thing from Phase 10's own in-app
+      self-update (updater.py), which replaces the .exe directly without
+      going through Windows Installer at all. Either can be used; they
+      don't conflict, since both end up producing the same installed
+      RemoteBridgeHost.exe.
+    -->
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="RemoteBridge" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="RemoteBridge" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="HostExecutable" Guid="*">
+        <File Id="HostExe" Source="$(var.SourceDir)\RemoteBridgeHost.exe" KeyPath="yes" />
+      </Component>
+
+      <!--
+        build.ps1 always ensures a deploy_config.json exists before this
+        runs (creating an empty `{}` one if IT didn't provide one), so
+        this component is never conditional - WiX needs the source file
+        to exist at build time regardless. An empty file just means that
+        installed host starts with no admin console configured (same as
+        Phase 9) until someone runs it once with the admin-url flag manually.
+        See admin/README.md's "How a host connects to this" and
+        ../deploy_config.template.json.
+      -->
+      <Component Id="DeployConfig" Guid="*">
+        <File Id="DeployConfigJson" Source="$(var.SourceDir)\deploy_config.json" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="RemoteBridge Host"
+                  Description="Start the RemoteBridge host"
+                  Target="[INSTALLFOLDER]RemoteBridgeHost.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <!-- HKCU, not HKLM: this component needs a per-user registry key as its
+             KeyPath since it has no file of its own to key off - standard WiX
+             pattern for a shortcut-only component. -->
+        <RegistryValue Root="HKCU" Key="Software\RemoteBridge\RemoteHost"
+                       Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="RemoteBridge Host" Level="1">
+      <ComponentRef Id="HostExecutable" />
+      <ComponentRef Id="DeployConfig" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+  </Product>
+</Wix>

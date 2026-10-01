@@ -1,0 +1,43 @@
+# RemoteBridge - Render Blueprint (free tier).
+#
+# Deploys the ADMIN CONSOLE + policy API (Flask). The database is Neon (Postgres), created separately
+# at neon.tech - Render's own free Postgres expires after 30 days, Neon's free tier does not.
+#
+# NOT deployed here: the relay (server/relay.py). It speaks raw TCP, and Render only exposes
+# HTTP(S)/WebSocket publicly - see docs/DEPLOY_RENDER_NEON.md for where to run it.
+services:
+  - type: web
+    name: remotebridge-admin
+    runtime: python
+    plan: free
+    region: oregon            # pick the region closest to your Neon project (Neon: Project > Settings)
+    rootDir: admin
+    buildCommand: pip install -r requirements.txt
+    # 1 worker + threads: the free instance has 512 MB RAM / 0.1 CPU. PBKDF2 login hashing is the
+    # heaviest request; don't add workers.
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --access-logfile -
+    healthCheckPath: /healthz   # does not touch the database, so Neon can still scale to zero
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      - key: DATABASE_URL        # paste the Neon *pooled* connection string in the dashboard
+        sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD      # first operator; only used while no operator exists yet
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ORG_ENROLLMENT_KEY  # hosts need this for their FIRST enrollment only
+        generateValue: true
+      - key: RELAY_SECRET        # MUST equal the relay's RELAY_SECRET; the console mints each device's relay token from it
+        generateValue: true
+      - key: REMOTEBRIDGE_BEHIND_PROXY
+        value: "1"
+      - key: REMOTEBRIDGE_SECURE_COOKIES
+        value: "1"
+      - key: REMOTEBRIDGE_REQUIRE_2FA   # "1" = every operator must set up an authenticator app (2FA) first
+        value: "0"
+      - key: SESSION_EVENT_RETENTION_DAYS
+        value: "90"

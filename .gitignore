@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.db
+.env
+host_config.json
+enrollment.json
+sessions.log
+*.pem
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+.pub-cache/
+build/
+*.log

@@ -1,0 +1,46 @@
+name: remote_host
+description: >
+  Phase 6 mobile host app - lets a phone itself be remoted into (screen
+  capture permission flow, mirroring, scoped file browser, battery-aware
+  throttling), speaking the same wire protocol as desktop/host.py and
+  interoperating with desktop/viewer.py and mobile/controller.
+publish_to: "none"
+version: 0.6.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Self-signed TLS cert/key generation for the host's video/control
+  # channels (see lib/services/cert_manager.dart) - mirrors
+  # desktop/generate_cert.sh, done at runtime instead of via openssl.
+  basic_utils: ^5.7.0
+  # NOTE: cert_manager.dart imports package:pointycastle/asymmetric/api.dart
+  # directly for the RSAPrivateKey/RSAPublicKey types, without a separate
+  # pubspec entry here - it's a transitive dependency of basic_utils, and
+  # Dart resolves imports against the whole resolved package graph, not
+  # just direct dependencies. If `flutter pub get` ever reports it as
+  # unresolvable, pin it explicitly to whatever version basic_utils'
+  # pubspec.lock brings in.
+  # PBKDF2-HMAC-SHA256 primitives for the unattended-password hash
+  # (lib/models/host_config.dart), matching desktop/auth.py's scheme.
+  crypto: ^3.0.3
+  # Persists host_config.dart's settings across launches.
+  shared_preferences: ^2.2.3
+  # Battery level/charging state for Phase 6's battery-aware throttling
+  # (lib/services/battery_guard.dart).
+  battery_plus: ^6.0.2
+  # Resolves the app's own documents directory - both the scoped file
+  # browser's root and where sessions.log / host_cert.pem / host_key.pem
+  # are written.
+  path_provider: ^2.1.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

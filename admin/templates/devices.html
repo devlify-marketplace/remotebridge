@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Devices") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Devices") }}</h1>
+  <div class="subtitle">{{ _("Every host that has enrolled with this console via --admin-url.") }}</div>
+
+  <div class="panel">
+    {% if devices %}
+    <table>
+      <caption class="visually-hidden">{{ _("Enrolled devices") }}</caption>
+      <tr><th scope="col">{{ _("Device ID") }}</th><th scope="col">{{ _("Display name") }}</th><th scope="col">{{ _("Group") }}</th><th scope="col">{{ _("Version") }}</th><th scope="col">{{ _("MAC address") }}</th><th scope="col">{{ _("Last seen") }}</th><th scope="col">{{ _("Enrolled") }}</th></tr>
+      {% for d in devices %}
+      <tr>
+        <td class="mono">{{ d.device_id }}
+          {% if d.revoked_at %}<div><strong>{{ _("Relay access revoked") }}</strong></div>{% endif %}
+          {% if current_user.role == 'admin' %}
+          {% if d.revoked_at %}
+          <form action="{{ url_for('restore_device_ui', device_id=d.device_id) }}" method="post" class="inline">
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Restore relay access for {device}', device=d.device_id) }}">{{ _("Restore") }}</button>
+          </form>
+          {% else %}
+          <form action="{{ url_for('revoke_device_ui', device_id=d.device_id) }}" method="post" class="inline"
+                onsubmit="return confirm({{ _('Revoke relay access for {device}? It will be disconnected and unable to register until restored.', device=d.device_id)|tojson }});">
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Revoke relay access for {device}', device=d.device_id) }}">{{ _("Revoke") }}</button>
+          </form>
+          {% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if current_user.role == 'admin' %}
+          <form action="{{ url_for('rename_device', device_id=d.device_id) }}" method="post" class="inline">
+  {{ csrf_input() }}
+            <input type="text" name="display_name" value="{{ d.display_name }}" style="width:160px;display:inline-block;"
+                   aria-label="{{ _('Display name for {device}', device=d.device_id) }}">
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save display name for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
+          </form>
+          {% else %}
+            {{ d.display_name }}
+          {% endif %}
+        </td>
+        <td>
+          {% if current_user.role == 'admin' %}
+          <form action="{{ url_for('set_device_group', device_id=d.device_id) }}" method="post" class="inline">
+  {{ csrf_input() }}
+            <select name="group_id" style="width:auto;display:inline-block;" aria-label="{{ _('Group for {device}', device=d.device_id) }}">
+              {% for g in groups %}
+                <option value="{{ g.id }}" {{ 'selected' if g.id == d.group_id }}>{{ g.name }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save group for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
+          </form>
+          {% else %}
+            {{ d.group_name }}
+          {% endif %}
+        </td>
+        <td class="mono">{{ d.current_version or '—' }}</td>
+        <td>
+          {% if current_user.role == 'admin' %}
+          <form action="{{ url_for('set_device_mac', device_id=d.device_id) }}" method="post" class="inline">
+  {{ csrf_input() }}
+            <input type="text" name="mac_address" value="{{ d.mac_address or '' }}" placeholder="AA:BB:CC:DD:EE:FF"
+                   class="mono" style="width:135px;display:inline-block;"
+                   aria-label="{{ _('MAC address for {device}', device=d.device_id) }}">
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save MAC address for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
+          </form>
+          <form action="{{ url_for('wake_device_ui', device_id=d.device_id) }}" method="post" class="inline">
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Wake {device}', device=d.device_id) }}" {{ 'disabled' if not d.mac_address }}>{{ _("Wake") }}</button>
+          </form>
+          {% else %}
+            {{ d.mac_address or '—' }}
+          {% endif %}
+        </td>
+        <td class="mono">{{ d.last_seen_at[:19].replace('T', ' ') if d.last_seen_at else _('never') }}
+          {% if d.last_seen_address %}<div class="subtitle" style="margin:0;">{{ _("from {address}", address=d.last_seen_address) }}</div>{% endif %}</td>
+        <td class="mono">{{ d.enrolled_at[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <div class="empty">{{ _("No devices enrolled yet. Run a host with {admin_url} and {enrollment_key} to enroll one.", admin_url="<code>--admin-url</code>"|safe, enrollment_key="<code>--enrollment-key</code>"|safe) }}</div>
+    {% endif %}
+  </div>
+{% endblock %}

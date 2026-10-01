@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Feedback") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Feedback") }}</h1>
+  <div class="subtitle">{{ _("Support requests and feedback sent from hosts and their viewers.") }}</div>
+
+  <nav class="filter-bar panel" aria-label="{{ _('Filter by status') }}">
+    {% for value, label in (('open', _("Open")), ('resolved', _("Resolved")), ('all', _("All"))) %}
+      <a class="btn {{ '' if status == value else 'btn-quiet' }}" href="{{ url_for('feedback_inbox', status=value) }}"
+         {% if status == value %}aria-current="true"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  <div class="panel">
+    {% if items %}
+    <table>
+      <caption class="visually-hidden">{{ _("Feedback") }}</caption>
+      <tr><th scope="col">{{ _("When") }}</th><th scope="col">{{ _("Device") }}</th><th scope="col">{{ _("Category") }}</th>
+          <th scope="col">{{ _("Message") }}</th><th scope="col">{{ _("Status") }}</th></tr>
+      {% for f in items %}
+      <tr>
+        <td class="mono">{{ f.created_at[:19].replace('T', ' ') }}</td>
+        <td class="mono">{{ f.device_id }}</td>
+        <td>{{ _(f.category) }}</td>
+        <td><a href="{{ url_for('feedback_detail', feedback_id=f.id) }}">{{ f.message[:90] }}{{ '…' if f.message|length > 90 }}</a></td>
+        <td>
+          {% if f.status == 'open' %}<span class="badge badge-danger">{{ _("open") }}</span>
+          {% else %}<span class="badge badge-ok">{{ _("resolved") }}</span>{% endif %}
+          {% if f.reply %}<span class="visually-hidden">, {{ _("replied") }}</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <div class="empty">{{ _("No feedback here.") }}</div>
+    {% endif %}
+  </div>
+{% endblock %}

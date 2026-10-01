@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Session history") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Session history") }}</h1>
+  <div class="subtitle">{{ _("Every attempt, start, and end a host has reported.") }}</div>
+
+  <form method="get" class="filter-bar panel">
+    <div>
+      <label for="device">{{ _("Device") }}</label>
+      <select id="device" name="device">
+        <option value="">{{ _("All devices") }}</option>
+        {% for d in devices %}
+          <option value="{{ d.device_id }}" {{ 'selected' if filters.device == d.device_id }}>{{ d.device_id }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="event">{{ _("Event") }}</label>
+      <select id="event" name="event">
+        <option value="">{{ _("All events") }}</option>
+        {% for ev in ['attempt', 'start', 'end'] %}
+          <option value="{{ ev }}" {{ 'selected' if filters.event == ev }}>{{ ev }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="days">{{ _("Since") }}</label>
+      <select id="days" name="days">
+        <option value="" {{ 'selected' if not filters.days }}>{{ _("All time") }}</option>
+        <option value="1" {{ 'selected' if filters.days == '1' }}>{{ _("Last 24 hours") }}</option>
+        <option value="7" {{ 'selected' if filters.days == '7' }}>{{ _("Last 7 days") }}</option>
+        <option value="30" {{ 'selected' if filters.days == '30' }}>{{ _("Last 30 days") }}</option>
+      </select>
+    </div>
+    <div style="max-width:120px;"><button class="btn" type="submit">{{ _("Filter") }}</button></div>
+  </form>
+
+  <div class="panel">
+    {% if events %}
+    <table>
+      <caption class="visually-hidden">{{ _("Session history") }}</caption>
+      <tr><th scope="col">{{ _("When") }}</th><th scope="col">{{ _("Device") }}</th><th scope="col">{{ _("Viewer") }}</th><th scope="col">{{ _("Address") }}</th><th scope="col">{{ _("Event") }}</th><th scope="col">{{ _("Decision / reason") }}</th><th scope="col">{{ _("Duration") }}</th></tr>
+      {% for e in events %}
+      <tr>
+        <td class="mono">{{ e.timestamp[:19].replace('T', ' ') }}</td>
+        <td class="mono">{{ e.device_id }}</td>
+        <td class="mono">{{ e.viewer_id or '—' }}</td>
+        <td class="mono">{{ e.address or '—' }}</td>
+        <td>{{ e.event }}</td>
+        <td>
+          {% if e.decision %}<span class="badge {{ 'badge-ok' if e.decision in ('auto_unattended', 'manual_accept') else 'badge-danger' }}">{{ e.decision }}</span>{% endif %}
+          {% if e.reason %}<div class="subtitle" style="margin:2px 0 0;">{{ e.reason }}</div>{% endif %}
+        </td>
+        <td class="mono">{{ (e.duration_seconds ~ 's') if e.duration_seconds is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <div class="empty">{{ _("No session events match this filter.") }}</div>
+    {% endif %}
+  </div>
+{% endblock %}

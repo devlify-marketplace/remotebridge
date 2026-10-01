@@ -1,0 +1,41 @@
+<!--
+  Not a full AndroidManifest.xml - `flutter create .` generates that
+  scaffold. These are the permissions/entries/service declaration Phase
+  6's screen-capture-as-host feature needs added to it, on top of
+  whatever `mobile/controller`'s own snippet already documents (this app
+  doesn't reuse that one - it's a separate Flutter project - but the
+  INTERNET permission below is needed for the same reason: every
+  video/control socket).
+
+    - INTERNET: video/control sockets (direct LAN or via server/relay.py).
+    - FOREGROUND_SERVICE / FOREGROUND_SERVICE_MEDIA_PROJECTION: required
+      since Android 10 (foreground service) and Android 14
+      (per-type foreground service permission) to keep
+      ScreenCaptureService.kt's MediaProjection capture running while the
+      app isn't the one in the foreground - which is the whole point of
+      "let others remote into the phone", since the viewer is watching
+      whatever's on screen, including other apps.
+    - POST_NOTIFICATIONS: Android 13+ requires this to show the
+      "Screen is being shared" persistent notification a foreground
+      service of type mediaProjection must display - this is an OS
+      requirement (a visible, un-dismissable indicator that capture is
+      active), not an optional nicety.
+    - WAKE_LOCK: keeps the CPU from sleeping mid-session when the
+      screen the viewer is watching would otherwise dim/lock on the host
+      phone's own idle timeout.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application>
+        <service
+            android:name=".ScreenCaptureService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>

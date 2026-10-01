@@ -1,0 +1,31 @@
+<!--
+  Entries to merge into the `flutter create .`-generated Info.plist.
+
+  Unlike the camera or microphone, RPScreenRecorder doesn't need an
+  NSUsageDescription key for the video itself - iOS shows its own
+  system "Start Broadcast/Recording?" prompt regardless. This app does
+  capture microphone audio alongside the screen (RPScreenRecorder's
+  default), which does need one, and needs UIBackgroundModes so audio
+  capture (and, by extension, socket I/O for the video/control
+  channels) doesn't get suspended immediately if the app is briefly
+  backgrounded mid-session.
+
+  What this does NOT cover: true system-wide, background screen
+  mirroring. `RPScreenRecorder.shared().startCapture(...)` (used by
+  `ScreenCaptureBridge.swift`) only captures this app's own window
+  while it's in the foreground - Apple's mechanism for capturing the
+  whole screen from the background is a separate Broadcast Upload
+  Extension target, which needs its own App Group entitlement and
+  can't be added by editing a plist; see the README's "Deliberately
+  deferred" section.
+-->
+<plist>
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Lets a remote viewer hear this phone's audio while its screen is being shared, if you choose to include it.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
+</dict>
+</plist>

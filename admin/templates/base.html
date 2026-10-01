@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ _("Admin Console") }}{% endblock %} · {{ branding.display_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="brand"><strong>{{ branding.display_name }}</strong>{{ _("Admin Console") }}</div>
+      <nav class="nav" aria-label="{{ _('Main') }}">
+        {% macro nav_link(endpoint, label, active_endpoints) %}
+          {% set active = request.endpoint in active_endpoints %}
+          <a href="{{ url_for(endpoint) }}" class="{{ 'active' if active }}"{% if active %} aria-current="page"{% endif %}>{{ label }}{{ caller() if caller }}</a>
+        {% endmacro %}
+        {{ nav_link('dashboard', _("Dashboard"), ('dashboard',)) }}
+        {{ nav_link('devices', _("Devices"), ('devices',)) }}
+        {{ nav_link('groups', _("Groups & policy"), ('groups', 'new_group', 'edit_group')) }}
+        {{ nav_link('sessions', _("Session history"), ('sessions',)) }}
+        {% call nav_link('feedback_inbox', _("Feedback"), ('feedback_inbox', 'feedback_detail')) %}{% if open_feedback %} <span class="count">{{ open_feedback }}<span class="visually-hidden"> {{ _("open") }}</span></span>{% endif %}{% endcall %}
+        {{ nav_link('account_security', _("Account security"), ('account_security',)) }}
+        {% if current_user.role == 'admin' %}
+        {{ nav_link('users', _("Operators"), ('users',)) }}
+        {{ nav_link('deployment', _("Deployment"), ('deployment',)) }}
+        {% endif %}
+      </nav>
+      <div class="sidebar-footer">
+        {{ _("Signed in as") }} <strong>{{ current_user.username }}</strong> ({{ _("Admin") if current_user.role == 'admin' else _("Auditor (read-only)") }})
+        <form action="{{ url_for('logout') }}" method="post">
+          {{ csrf_input() }}
+          <button class="btn btn-quiet" type="submit" style="width:100%;margin-top:8px;">{{ _("Sign out") }}</button>
+        </form>
+        {% include "_controls.html" %}
+      </div>
+    </div>
+    <main class="main" id="main" tabindex="-1">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ 'error' if category == 'error' else 'ok' }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

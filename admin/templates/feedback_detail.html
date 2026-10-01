@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Feedback") }} #{{ item.id }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Feedback") }} #{{ item.id }}</h1>
+  <div class="subtitle"><a href="{{ url_for('feedback_inbox') }}">{{ _("Back to feedback") }}</a></div>
+
+  <div class="panel">
+    <dl>
+      <dt>{{ _("Device") }}</dt><dd class="mono">{{ item.device_id }}</dd>
+      {% if item.viewer_id %}<dt>{{ _("Viewer") }}</dt><dd class="mono">{{ item.viewer_id }}</dd>{% endif %}
+      <dt>{{ _("Category") }}</dt><dd>{{ _(item.category) }}</dd>
+      <dt>{{ _("When") }}</dt><dd class="mono">{{ item.created_at[:19].replace('T', ' ') }}</dd>
+      {% if item.client_version %}<dt>{{ _("Version") }}</dt><dd class="mono">{{ item.client_version }}</dd>{% endif %}
+      <dt>{{ _("Status") }}</dt><dd>{{ _(item.status) }}</dd>
+    </dl>
+    <h2>{{ _("Message") }}</h2>
+    <p style="white-space:pre-wrap;">{{ item.message }}</p>
+  </div>
+
+  <div class="panel">
+    <h2>{{ _("Reply") }}</h2>
+    {% if item.reply %}
+      <p style="white-space:pre-wrap;">{{ item.reply }}</p>
+      <div class="subtitle">{{ _("Replied by {name} on {when}", name=item.replied_by, when=item.replied_at[:19].replace('T', ' ')) }}</div>
+    {% endif %}
+    {% if current_user.role == 'admin' %}
+    <form method="post" action="{{ url_for('feedback_reply', feedback_id=item.id) }}">
+      {{ csrf_input() }}
+      <label for="reply">{{ _("Your reply (the sender can read it from their host)") }}</label>
+      <textarea id="reply" name="reply" maxlength="4000" required></textarea>
+      <label class="checkbox"><input type="checkbox" name="resolve" checked> {{ _("Mark as resolved") }}</label>
+      <button class="btn" type="submit">{{ _("Send reply") }}</button>
+    </form>
+    <form method="post" action="{{ url_for('feedback_status', feedback_id=item.id) }}" style="margin-top:12px;">
+      {{ csrf_input() }}
+      {% if item.status == 'open' %}
+        <input type="hidden" name="status" value="resolved">
+        <button class="btn btn-quiet" type="submit">{{ _("Mark resolved without replying") }}</button>
+      {% else %}
+        <input type="hidden" name="status" value="open">
+        <button class="btn btn-quiet" type="submit">{{ _("Reopen") }}</button>
+      {% endif %}
+    </form>
+    {% endif %}
+  </div>
+{% endblock %}

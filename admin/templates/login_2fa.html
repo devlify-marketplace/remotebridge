@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ _("Two-factor code") }} · {{ _("Admin Console") }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
+  <main class="login-wrap" id="main" tabindex="-1">
+    <div class="login-box">
+      <h1>{{ branding.display_name }}</h1>
+      <div class="subtitle">{{ _("Two-factor authentication") }}</div>
+      <div class="panel">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="flash flash-{{ 'error' if category == 'error' else 'ok' }}" role="{{ 'alert' if category == 'error' else 'status' }}">{{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+        <form method="post">
+          {{ csrf_input() }}
+          <label for="code">{{ _("Code from your authenticator app, or a recovery code") }}</label>
+          <input type="text" id="code" name="code" autocomplete="one-time-code" inputmode="text" autocapitalize="off" spellcheck="false" autofocus required>
+          <button class="btn" type="submit" style="width:100%;margin-top:18px;">{{ _("Verify") }}</button>
+        </form>
+        <p style="margin-top:14px;"><a href="{{ url_for('login') }}">{{ _("Back to sign in") }}</a></p>
+      </div>
+      {% include "_controls.html" %}
+    </div>
+  </main>
+</body>
+</html>

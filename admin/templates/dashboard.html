@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Dashboard") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Dashboard") }}</h1>
+  <div class="subtitle">{{ _("Who's connecting to what, at a glance.") }}</div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="value">{{ summary.total_devices }}</div><div class="label">{{ _("Enrolled devices") }}</div></div>
+    <div class="stat-card"><div class="value">{{ summary.total_groups }}</div><div class="label">{{ _("Policy groups") }}</div></div>
+    <div class="stat-card"><div class="value">{{ summary.sessions_today }}</div><div class="label">{{ _("Sessions today") }}</div></div>
+    <div class="stat-card"><div class="value">{{ summary.sessions_week }}</div><div class="label">{{ _("Sessions, last 7 days") }}</div></div>
+    <div class="stat-card"><div class="value">{{ summary.rejected_week }}</div><div class="label">{{ _("Rejected attempts, last 7 days") }}</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>{{ _("Busiest devices, last 7 days") }}</h2>
+    {% if summary.top_devices %}
+      {% set top = summary.top_devices[0].sessions %}
+      {% for d in summary.top_devices %}
+        <div class="bar-row">
+          <div class="name">{{ d.device_id }}</div>
+          <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="width: {{ (d.sessions / top * 100) | round }}%"></div></div>
+          <div class="count">{{ d.sessions }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">{{ _("No sessions reported yet.") }}</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h2>{{ _("Recent activity") }}</h2>
+    {% if recent %}
+    <table>
+      <caption class="visually-hidden">{{ _("Recent activity") }}</caption>
+      <tr><th scope="col">{{ _("When") }}</th><th scope="col">{{ _("Device") }}</th><th scope="col">{{ _("Viewer") }}</th><th scope="col">{{ _("Event") }}</th><th scope="col">{{ _("Decision") }}</th></tr>
+      {% for e in recent %}
+      <tr>
+        <td class="mono">{{ e.timestamp[:19].replace('T', ' ') }}</td>
+        <td class="mono">{{ e.device_id }}</td>
+        <td class="mono">{{ e.viewer_id or '—' }}</td>
+        <td>{{ e.event }}</td>
+        <td>
+          {% if e.decision in ('auto_unattended', 'manual_accept') %}
+            <span class="badge badge-ok">{{ e.decision }}</span>
+          {% elif e.decision %}
+            <span class="badge badge-danger">{{ e.decision }}</span>
+          {% else %}
+            <span class="badge badge-neutral">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <div class="empty">{{ _("Nothing reported yet - enroll a host with --admin-url to see activity here.") }}</div>
+    {% endif %}
+    <div style="margin-top:12px;"><a href="{{ url_for('sessions') }}">{{ _("View full session history") }}</a></div>
+  </div>
+{% endblock %}

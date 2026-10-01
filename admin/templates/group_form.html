@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ _('Edit group') if group else _('New group') }}{% endblock %}
+{% block content %}
+  <h1>{{ _('Edit {name}', name=group.name) if group else _('New group') }}</h1>
+  <div class="subtitle">{{ _("These settings apply to every device in this group, immediately - hosts pick up policy changes on their next refresh (default every 5 minutes) with no restart needed.") }}</div>
+
+  <form method="post" class="panel">
+  {{ csrf_input() }}
+    <label for="name">{{ _("Group name") }}</label>
+    <input type="text" id="name" name="name" value="{{ group.name if group else '' }}"
+           {{ 'readonly' if group and group.name == 'Default' }} required>
+
+    <h2 style="margin-top:22px;">{{ _("Session behavior") }}</h2>
+    <label class="checkbox"><input type="checkbox" name="require_view_only" {{ 'checked' if group and group.require_view_only }}> {{ _("Force every viewer into view-only mode") }}</label>
+    <div class="field-row">
+      <div>
+        <label for="max_viewers">{{ _("Max simultaneous viewers") }}</label>
+        <input type="number" id="max_viewers" min="1" name="max_viewers" value="{{ group.max_viewers if group else 10 }}">
+      </div>
+      <div>
+        <label for="max_session_minutes">{{ _("Session time limit, minutes (0 = unlimited)") }}</label>
+        <input type="number" id="max_session_minutes" min="0" name="max_session_minutes" value="{{ group.max_session_minutes if group else 0 }}">
+      </div>
+    </div>
+
+    <h2 style="margin-top:22px;">{{ _("Features allowed") }}</h2>
+    <label class="checkbox"><input type="checkbox" name="allow_unattended_access" {{ 'checked' if not group or group.allow_unattended_access }}> {{ _("Unattended access (saved password / 2FA, no console prompt)") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_file_transfer" {{ 'checked' if not group or group.allow_file_transfer }}> {{ _("File transfer") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_clipboard" {{ 'checked' if not group or group.allow_clipboard }}> {{ _("Clipboard sync") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_chat" {{ 'checked' if not group or group.allow_chat }}> {{ _("Text chat") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_voice" {{ 'checked' if not group or group.allow_voice }}> {{ _("Voice chat") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_whiteboard" {{ 'checked' if not group or group.allow_whiteboard }}> {{ _("Whiteboard") }}</label>
+    <label class="checkbox"><input type="checkbox" name="allow_printing" {{ 'checked' if not group or group.allow_printing }}> {{ _("Remote printing") }}</label>
+
+    <h2 style="margin-top:22px;">{{ _("Updates") }}</h2>
+    <label class="checkbox"><input type="checkbox" name="auto_update" {{ 'checked' if not group or group.auto_update }}> {{ _("Auto-download and apply a published release (otherwise a host just prints that one's available)") }}</label>
+
+    <h2 style="margin-top:22px;">{{ _("Viewer ID lists") }}</h2>
+    <label class="checkbox"><input type="checkbox" name="require_whitelist" {{ 'checked' if group and group.require_whitelist }}> {{ _("Only allow viewer IDs in the allow-list below (otherwise it's advisory only)") }}</label>
+    <div class="field-row">
+      <div>
+        <label for="allowed_viewer_ids">{{ _("Allowed viewer IDs (one per line)") }}</label>
+        <textarea id="allowed_viewer_ids" name="allowed_viewer_ids">{{ group.allowed_viewer_ids | join('\n') if group else '' }}</textarea>
+      </div>
+      <div>
+        <label for="blocked_viewer_ids">{{ _("Blocked viewer IDs (one per line)") }}</label>
+        <textarea id="blocked_viewer_ids" name="blocked_viewer_ids">{{ group.blocked_viewer_ids | join('\n') if group else '' }}</textarea>
+      </div>
+    </div>
+
+    <div style="margin-top:22px;">
+      <button class="btn" type="submit">{{ _('Save changes') if group else _('Create group') }}</button>
+      <a class="btn btn-quiet" href="{{ url_for('groups') }}">{{ _("Cancel") }}</a>
+    </div>
+  </form>
+{% endblock %}

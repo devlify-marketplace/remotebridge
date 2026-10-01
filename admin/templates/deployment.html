@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Deployment") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Deployment") }}</h1>
+  <div class="subtitle">{{ _("Branding shown in this console and to connecting viewers, the latest build for auto-update, and the config IT bundles into a scripted rollout.") }}</div>
+
+  <div class="panel" style="max-width:520px;">
+    <h2>{{ _("Branding") }}</h2>
+    <form method="post">
+  {{ csrf_input() }}
+      <input type="hidden" name="form_id" value="branding">
+      <label for="display_name">{{ _("Display name") }}</label>
+      <input type="text" id="display_name" name="display_name" value="{{ branding.display_name }}" required>
+      <label for="support_url">{{ _("Support URL (shown to viewers on connect, optional)") }}</label>
+      <input type="text" id="support_url" name="support_url" value="{{ branding.support_url }}"
+             placeholder="https://support.example.com">
+      <button class="btn" type="submit" style="margin-top:18px;">{{ _("Save branding") }}</button>
+    </form>
+  </div>
+
+  <div class="panel" style="max-width:520px;">
+    <h2>{{ _("Latest release") }}</h2>
+    {% if release %}
+      <div class="subtitle">{{ _("Currently published:") }} <span class="mono">{{ release.version }}</span>
+        ({{ release.published_at[:10] }})</div>
+    {% else %}
+      <div class="subtitle">{{ _("Nothing published yet - hosts will never see an update available.") }}</div>
+    {% endif %}
+    <form method="post">
+  {{ csrf_input() }}
+      <input type="hidden" name="form_id" value="release">
+      <label for="version">{{ _("Version") }}</label>
+      <input type="text" id="version" name="version" value="{{ release.version if release else '' }}"
+             placeholder="10.0.1" required>
+      <label for="download_url">{{ _("Download URL") }}</label>
+      <input type="text" id="download_url" name="download_url"
+             value="{{ release.download_url if release else '' }}"
+             placeholder="https://dl.example.com/RemoteBridgeHost-10.0.1.msi">
+      <label for="sha256">{{ _("SHA-256 checksum") }}</label>
+      <input type="text" id="sha256" name="sha256" value="{{ release.sha256 if release else '' }}"
+             placeholder="{{ _("checksum of the file at that URL") }}">
+      <label for="notes">{{ _("Release notes (optional)") }}</label>
+      <textarea id="notes" name="notes">{{ release.notes if release else '' }}</textarea>
+      <button class="btn" type="submit" style="margin-top:18px;">{{ _("Publish release") }}</button>
+    </form>
+    <div class="subtitle" style="margin-top:10px;">{{ _("A host only downloads and applies this automatically if its group's policy has \"Auto-update\" on (Groups & policy); otherwise it just prints that an update is available.") }}</div>
+  </div>
+
+  <div class="panel" style="max-width:520px;">
+    <h2>{{ _("deploy_config.json for a scripted install") }}</h2>
+    <div class="subtitle">{{ _("Bundle this file next to the host executable (the MSI/install script does this for you - see {path} in the repo) so a silently-installed host enrolls with this console with no one typing flags on each machine.", path="<span class=\"mono\">deploy/</span>"|safe) }}</div>
+    <textarea readonly style="min-height:110px;" aria-label="{{ _('Example deploy_config.json') }}">{
+  "admin_url": "{{ request.host_url.rstrip('/') }}",
+  "enrollment_key": "{{ org_enrollment_key }}"
+}</textarea>
+  </div>
+{% endblock %}

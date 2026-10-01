@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Account security") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Account security") }}</h1>
+  <div class="subtitle">{{ _("Protect your operator account with a one-time code from an authenticator app, in addition to your password.") }}</div>
+
+  {% if new_codes %}
+  <div class="panel" style="border-color: var(--accent);">
+    <h2>{{ _("Recovery codes - save them now, they won't be shown again") }}</h2>
+    <p>{{ _("Each code works once, if you lose your phone. Keep them somewhere safe and separate from your password.") }}</p>
+    <ul class="mono">{% for c in new_codes %}<li>{{ c }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="panel" style="max-width:520px;">
+    <h2>{{ _("Two-factor authentication") }}</h2>
+    {% if enabled %}
+      <p><span class="badge badge-neutral">{{ _("On") }}</span> {{ _("Recovery codes left: {count}", count=recovery_left) }}</p>
+      {% if required %}
+        <p>{{ _("This console requires two-factor authentication, so it can't be turned off.") }}</p>
+      {% else %}
+      <form method="post" action="{{ url_for('account_2fa_disable') }}">
+        {{ csrf_input() }}
+        <label for="password">{{ _("Password") }}</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+        <label for="code">{{ _("Current code") }}</label>
+        <input type="text" id="code" name="code" autocomplete="one-time-code" required>
+        <button class="btn btn-quiet" type="submit" style="margin-top:18px;">{{ _("Turn off two-factor authentication") }}</button>
+      </form>
+      {% endif %}
+    {% elif setup %}
+      <p>{{ _("In your authenticator app, add an account by entering this key, then type the 6-digit code it shows.") }}</p>
+      <p class="mono" style="font-size:1.1em;">{{ setup.secret }}</p>
+      <p>{{ _("Or open this link on the phone that has the app:") }} <a class="mono" href="{{ setup.uri }}">{{ _("Add to authenticator") }}</a></p>
+      <form method="post" action="{{ url_for('account_2fa_confirm') }}">
+        {{ csrf_input() }}
+        <label for="code">{{ _("6-digit code") }}</label>
+        <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+        <button class="btn" type="submit" style="margin-top:18px;">{{ _("Turn on two-factor authentication") }}</button>
+      </form>
+    {% else %}
+      <p><span class="badge badge-neutral">{{ _("Off") }}</span></p>
+      <form method="post" action="{{ url_for('account_2fa_start') }}">
+        {{ csrf_input() }}
+        <button class="btn" type="submit">{{ _("Set up two-factor authentication") }}</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

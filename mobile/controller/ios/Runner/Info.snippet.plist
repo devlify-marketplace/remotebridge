@@ -1,0 +1,12 @@
+<!--
+  Entries to merge into the `flutter create`-generated Info.plist.
+  NSFaceIDUsageDescription is required by iOS - without it, local_auth's
+  Face ID prompt fails silently on any device that uses Face ID instead
+  of Touch ID.
+-->
+<plist>
+<dict>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Unlock the remote controller and confirm unattended access to a host.</string>
+</dict>
+</plist>

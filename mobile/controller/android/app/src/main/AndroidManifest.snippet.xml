@@ -1,0 +1,24 @@
+<!--
+  This isn't a full AndroidManifest.xml - `flutter create` generates
+  that scaffold (activities, launcher icon, etc.). These are the
+  permissions/entries this app's Phase 5 features need added to it:
+
+    - INTERNET: every socket connection (video/input/control/relay).
+    - USE_BIOMETRIC: the Face/fingerprint app-lock (local_auth plugin).
+    - ACCESS_NETWORK_STATE: lets a future refinement auto-suggest
+      low-data mode when on cellular (not wired up yet - see
+      controller/README.md's "Not yet built" list).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application>
+        <!-- local_auth needs a FragmentActivity-derived launch activity;
+             flutter create's default MainActivity already extends
+             FlutterFragmentActivity in recent Flutter versions - if
+             yours doesn't, change it to extend
+             io.flutter.embedding.android.FlutterFragmentActivity. -->
+    </application>
+</manifest>

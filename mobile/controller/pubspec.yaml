@@ -1,0 +1,27 @@
+name: remote_controller
+description: >
+  Phase 5 mobile controller app - lets a phone find, connect to, and
+  control a desktop host running the desktop/ app from this repo.
+publish_to: "none"
+version: 0.5.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Face ID / fingerprint gate before opening the app or starting an
+  # unattended session (Phase 5 - Biometric app lock).
+  local_auth: ^2.3.0
+  # Persists the favorites/recent device list and per-device settings
+  # (low-data mode, direct-touch vs drag-mode default) across launches.
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

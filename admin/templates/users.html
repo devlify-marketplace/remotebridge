@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Operators") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Operators") }}</h1>
+  <div class="subtitle">{{ _("Who can sign in to this console. \"Admin\" can change devices, groups, and other operators; \"auditor\" can view everything but not change it.") }}</div>
+
+  <div class="panel">
+    <table>
+    <caption class="visually-hidden">{{ _("Operators") }}</caption>
+      <tr><th scope="col">{{ _("Username") }}</th><th scope="col">{{ _("Role") }}</th><th scope="col">{{ _("Two-factor") }}</th><th scope="col">{{ _("Created") }}</th><th scope="col"></th></tr>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td><span class="badge badge-neutral">{{ u.role }}</span></td>
+        <td>{{ _("On") if u.totp_enabled else _("Off") }}</td>
+        <td class="mono">{{ u.created_at[:10] }}</td>
+        <td>
+          {% if u.username != current_user.username %}
+          {% if u.totp_enabled %}
+          <form action="{{ url_for('reset_user_2fa', user_id=u.id) }}" method="post" class="inline"
+                onsubmit='return confirm({{ _("Reset two-factor authentication for {name}?", name=u.username)|striptags|tojson }})'>
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit">{{ _("Reset 2FA") }}</button>
+          </form>
+          {% endif %}
+          <form action="{{ url_for('delete_user', user_id=u.id) }}" method="post" class="inline"
+                onsubmit='return confirm({{ _("Remove operator {name}?", name=u.username)|striptags|tojson }})'>
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit">{{ _("Remove") }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="panel" style="max-width:420px;">
+    <h2>{{ _("Add an operator") }}</h2>
+    <form method="post" action="{{ url_for('new_user') }}">
+  {{ csrf_input() }}
+      <label for="username">{{ _("Username") }}</label>
+      <input type="text" id="username" name="username" required>
+      <label for="password">{{ _("Password") }}</label>
+      <input type="password" id="password" name="password" required>
+      <label for="role">{{ _("Role") }}</label>
+      <select id="role" name="role">
+        <option value="admin">{{ _("Admin") }}</option>
+        <option value="auditor">{{ _("Auditor (read-only)") }}</option>
+      </select>
+      <button class="btn" type="submit" style="margin-top:18px;">{{ _("Create account") }}</button>
+    </form>
+  </div>
+
+  <h1 style="margin-top:32px;">{{ _("API keys") }}</h1>
+  <div class="subtitle">{{ _("For scripts and other systems calling {api} (see {cli} in the repo) - wake a device, pull its session history, or issue a one-time unattended connection. Not the same as an operator password above.", api="<span class=\"mono\">/api/v1/ops/</span>"|safe, cli="<span class=\"mono\">cli/</span>"|safe) }}</div>
+
+  {% if new_api_key %}
+  <div class="panel" style="border-color: var(--accent);">
+    <h2>{{ _("New key created - copy it now, it won't be shown again") }}</h2>
+    <textarea readonly style="min-height:40px;" aria-label="{{ _('New API key') }}">{{ new_api_key }}</textarea>
+  </div>
+  {% endif %}
+
+  <div class="panel">
+    {% if api_keys %}
+    <table>
+    <caption class="visually-hidden">{{ _("API keys") }}</caption>
+      <tr><th scope="col">{{ _("Label") }}</th><th scope="col">{{ _("Created") }}</th><th scope="col">{{ _("Last used") }}</th><th scope="col"></th></tr>
+      {% for k in api_keys %}
+      <tr>
+        <td>{{ k.label }}</td>
+        <td class="mono">{{ k.created_at[:10] }}</td>
+        <td class="mono">{{ k.last_used_at[:19].replace('T', ' ') if k.last_used_at else 'never' }}</td>
+        <td>
+          <form action="{{ url_for('delete_api_key', key_id=k.id) }}" method="post" class="inline"
+                onsubmit='return confirm({{ _("Revoke API key \"{label}\"? Anything using it stops working immediately.", label=k.label)|striptags|tojson }})'>
+  {{ csrf_input() }}
+            <button class="btn btn-quiet" type="submit">{{ _("Revoke") }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+      <div class="empty">{{ _("No API keys yet.") }}</div>
+    {% endif %}
+  </div>
+
+  <div class="panel" style="max-width:420px;">
+    <h2>{{ _("Create an API key") }}</h2>
+    <form method="post" action="{{ url_for('new_api_key') }}">
+  {{ csrf_input() }}
+      <label for="label">{{ _("Label (what's this for?)") }}</label>
+      <input type="text" id="label" name="label" placeholder="{{ _("RMM integration") }}" required>
+      <button class="btn" type="submit" style="margin-top:18px;">{{ _("Create key") }}</button>
+    </form>
+  </div>
+{% endblock %}
