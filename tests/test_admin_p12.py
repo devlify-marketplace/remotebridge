@@ -370,5 +370,33 @@ class Contrast(unittest.TestCase):
         self.assertIn("forced-colors", CSS)
 
 
+class UserRegistration(AdminBase):
+    def test_registration_assigns_user_role_when_admin_exists(self):
+        tok = self.token()
+        r = self.c.post("/register", data={"username": "newuser", "password": "password123",
+                                           "confirm_password": "password123", "csrf_token": tok})
+        self.assertEqual(r.status_code, 302)
+        rows = store.list_admin_users(self.conn)
+        new_u = next(u for u in rows if u["username"] == "newuser")
+        self.assertEqual(new_u["role"], "user")
+
+    def test_registration_assigns_admin_role_when_no_admin_exists(self):
+        tmp_db = os.path.join(self.tmp, "empty.db")
+        conn = store.init_db(tmp_db)
+        old_db = server._DB_PATH
+        server._DB_PATH = tmp_db
+        try:
+            with server.app.test_client() as client:
+                html = client.get("/register").get_data(as_text=True)
+                tok = re.search(r'name="csrf_token" value="([^"]+)"', html).group(1)
+                r = client.post("/register", data={"username": "firstadmin", "password": "password123",
+                                                   "confirm_password": "password123", "csrf_token": tok})
+                self.assertEqual(r.status_code, 302)
+                u = store.get_admin_user(conn, 1)
+                self.assertEqual(u["role"], "admin")
+        finally:
+            server._DB_PATH = old_db
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

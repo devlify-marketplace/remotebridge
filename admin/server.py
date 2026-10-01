@@ -33,8 +33,10 @@ without putting real TLS and rate limiting in front of it.
 """
 
 import argparse
+import csv
 import getpass
 import hmac
+import io
 import os
 import secrets
 import sys
@@ -47,6 +49,7 @@ from flask import (Flask, g, make_response, redirect, render_template, request, 
 from markupsafe import Markup, escape
 
 import i18n
+import rbac
 import store
 import policy as policy_mod
 import relayauth
@@ -57,6 +60,21 @@ from marketplace_views import marketplace_web_bp
 app = Flask(__name__)
 app.register_blueprint(marketplace_api_bp)
 app.register_blueprint(marketplace_web_bp)
+
+
+@app.before_request
+def setup_request_context():
+    g.request_id = request.headers.get("X-Request-ID") or f"RB-{time.strftime('%Y%m%d')}-{secrets.token_hex(4)}"
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    return response
 
 
 # Hosting behind a TLS-terminating proxy (Render, Fly, nginx...): trust one hop of X-Forwarded-*
@@ -119,30 +137,72 @@ def close_db(exception=None):
 
 # --- Web console auth ------------------------------------------------------
 
+def audit_event(action: str, resource_type: str = None, resource_id: str = None,
+                target_user_id: int = None, device_id: str = None, metadata: dict = None):
+    actor_user_id = session.get("user_id") if "user_id" in session else None
+    actor_type = "user" if actor_user_id else ("api_key" if getattr(g, "api_key", None) else "system")
+    ip_address = request.remote_addr
+    user_agent = request.user_agent.string if request.user_agent else None
+    req_id = getattr(g, "request_id", None)
+    try:
+        store.record_audit_event(
+            get_db(), action=action, actor_user_id=actor_user_id, actor_type=actor_type,
+            resource_type=resource_type, resource_id=resource_id,
+            target_user_id=target_user_id, device_id=device_id,
+            ip_address=ip_address, user_agent=user_agent,
+            request_id=req_id, metadata=metadata
+        )
+    except Exception:
+        pass
+
+
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if "user_id" not in session:
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required", "request_id": getattr(g, "request_id", None)}), 401
             return redirect(url_for("login", next=request.path))
         return view(*args, **kwargs)
     return wrapped
+
+
+def require_permission(perm_code: str):
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if "user_id" not in session:
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Authentication required", "request_id": getattr(g, "request_id", None)}), 401
+                return redirect(url_for("login", next=request.path))
+            user_id = session["user_id"]
+            conn = get_db()
+            if not rbac.has_permission(conn, user_id, perm_code):
+                audit_event("AUTHORIZATION_DENIED", resource_type="endpoint", resource_id=request.path, metadata={"required_permission": perm_code})
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Permission denied: requires " + perm_code, "request_id": getattr(g, "request_id", None)}), 403
+                abort(403)
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 def admin_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login", next=request.path))
-        if session.get("role") != "admin":
-            abort(403)
-        return view(*args, **kwargs)
-    return wrapped
+    return require_permission("role.manage")(view)
 
 
 @app.context_processor
 def inject_user():
-    return {"current_user": {"username": session.get("username"), "role": session.get("role")},
-            "branding": store.get_branding(get_db())}
+    user_id = session.get("user_id")
+    conn = get_db()
+    user_perms = rbac.get_user_permissions(conn, user_id) if user_id else set()
+    role = session.get("role") or (rbac.get_user_role(conn, user_id) if user_id else "user")
+    return {
+        "current_user": {"username": session.get("username"), "role": role},
+        "branding": store.get_branding(conn),
+        "has_perm": lambda p: p in user_perms,
+        "user_role": role,
+    }
 
 
 # --- Phase 12: language, theme, CSRF -------------------------------------------
@@ -355,7 +415,8 @@ def register():
         return render_template("register.html")
     conn = get_db()
     try:
-        store.create_admin_user(conn, username, password, role="admin")
+        role = "admin" if store.count_admin_users(conn) == 0 else "user"
+        store.create_admin_user(conn, username, password, role=role)
         flash(tr("Account created successfully. Please sign in."), "ok")
         return redirect(url_for("login"))
     except store.DuplicateUserError:
@@ -977,8 +1038,9 @@ def api_feedback_list():
 
 @app.route("/api/v1/ops/feedback", methods=["GET"])
 def ops_list_feedback():
-    if _authenticate_ops() is None:
-        return jsonify({"error": "invalid or missing API key"}), 401
+    res, err = _authenticate_ops_request("feedback.read")
+    if err:
+        return err
     status = request.args.get("status")
     return jsonify(store.list_feedback(get_db(), status=status if status in ("open", "resolved") else None,
                                         device_id=request.args.get("device") or None, limit=200))
@@ -986,12 +1048,6 @@ def ops_list_feedback():
 
 @app.route("/api/v1/preauth/<viewer_id>", methods=["GET"])
 def api_preauth(viewer_id):
-    """Phase 11: a host checks this, for one specific connecting viewer_id,
-    at the moment auth would otherwise fall back to a blocking console
-    prompt (see host_p11.py's perform_host_auth_with_preauth) - the other
-    half of POST /api/v1/ops/devices/<id>/connect below. Device-
-    authenticated like /api/v1/policy: a host can only ever check preauth
-    for itself, never for another device."""
     device = _authenticate_device()
     if device is None:
         return jsonify({"error": "invalid or missing report token"}), 401
@@ -1000,19 +1056,30 @@ def api_preauth(viewer_id):
 
 
 # --- Phase 11: operator-facing REST API for automation (cli/, or any
-# direct caller) - API-key authenticated, not session-cookie or
-# report_token authenticated. See admin/README.md and cli/README.md. ----
+# direct caller) - Scoped API-key authenticated or RBAC user session. ---
 
-def _authenticate_ops():
-    key = _authenticate_api_key()
-    if key is not None:
-        return key
-    # A logged-in operator's browser session also works here, so the
-    # same endpoints can back a "Wake" button on the Devices page
-    # without needing a whole separate implementation for the UI.
+def _authenticate_ops_request(required_permission: str):
+    conn = get_db()
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        raw_key = header[len("Bearer "):].strip()
+        key = store.verify_api_key(conn, raw_key, required_permission=required_permission)
+        if key is None:
+            audit_event("AUTHORIZATION_DENIED", resource_type="api_key", metadata={"required_permission": required_permission})
+            return None, (jsonify({"error": "Invalid API key or insufficient scope", "request_id": getattr(g, "request_id", None)}), 403)
+        g.api_key = key
+        return ("api_key", key), None
+
     if "user_id" in session:
-        return {"label": session.get("username")}
-    return None
+        user_id = session["user_id"]
+        if not rbac.has_permission(conn, user_id, required_permission):
+            audit_event("AUTHORIZATION_DENIED", resource_type="endpoint", resource_id=request.path, metadata={"required_permission": required_permission})
+            return None, (jsonify({"error": f"Permission denied: requires {required_permission}", "request_id": getattr(g, "request_id", None)}), 403)
+        user = store.get_admin_user(conn, user_id)
+        return ("user", user), None
+
+    audit_event("AUTHORIZATION_DENIED", resource_type="endpoint", resource_id=request.path)
+    return None, (jsonify({"error": "Authentication required", "request_id": getattr(g, "request_id", None)}), 401)
 
 
 def _device_or_404(conn, device_id):
@@ -1024,15 +1091,17 @@ def _device_or_404(conn, device_id):
 
 @app.route("/api/v1/ops/devices", methods=["GET"])
 def ops_list_devices():
-    if _authenticate_ops() is None:
-        return jsonify({"error": "invalid or missing API key"}), 401
+    res, err = _authenticate_ops_request("device.read")
+    if err:
+        return err
     return jsonify(store.list_devices(get_db()))
 
 
 @app.route("/api/v1/ops/devices/<device_id>/sessions", methods=["GET"])
 def ops_device_sessions(device_id):
-    if _authenticate_ops() is None:
-        return jsonify({"error": "invalid or missing API key"}), 401
+    res, err = _authenticate_ops_request("session.read")
+    if err:
+        return err
     conn = get_db()
     device, err = _device_or_404(conn, device_id)
     if err:
@@ -1044,28 +1113,31 @@ def ops_device_sessions(device_id):
 
 @app.route("/api/v1/ops/devices/<device_id>/wake", methods=["POST"])
 def ops_wake_device(device_id):
-    if _authenticate_ops() is None:
-        return jsonify({"error": "invalid or missing API key"}), 401
+    res, err = _authenticate_ops_request("device.wake")
+    if err:
+        return err
     conn = get_db()
     device, err = _device_or_404(conn, device_id)
     if err:
         return err
-    if not device.get("mac_address"):
-        return jsonify({"error": f"no MAC address on file for {device_id} - set one on the "
-                                  f"Devices page, or upgrade the host so it reports its own"}), 400
+    mac = (device.get("mac_address") or "").strip()
+    if not mac:
+        return jsonify({"error": f"no MAC address on file for {device_id}"}), 400
     try:
-        wol.send_magic_packet(device["mac_address"], _WOL_BROADCAST, _WOL_PORT)
+        wol.send_magic_packet(mac, _WOL_BROADCAST, _WOL_PORT)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except OSError as e:
-        return jsonify({"error": f"could not send the magic packet: {e}"}), 502
-    return jsonify({"ok": True, "mac_address": device["mac_address"]})
+        return jsonify({"error": f"could not send magic packet: {e}"}), 502
+    audit_event("DEVICE_WAKE_REQUESTED", resource_type="device", resource_id=device_id, device_id=device_id, metadata={"mac": mac})
+    return jsonify({"ok": True, "mac_address": mac})
 
 
 @app.route("/api/v1/ops/devices/<device_id>/connect", methods=["POST"])
 def ops_connect_device(device_id):
-    if _authenticate_ops() is None:
-        return jsonify({"error": "invalid or missing API key"}), 401
+    res, err = _authenticate_ops_request("device.connect")
+    if err:
+        return err
     conn = get_db()
     device, err = _device_or_404(conn, device_id)
     if err:
@@ -1073,17 +1145,63 @@ def ops_connect_device(device_id):
     body = request.get_json(silent=True) or {}
     ttl = body.get("ttl_seconds", 300)
     pending = store.create_pending_connection(conn, device_id, ttl_seconds=ttl)
+    audit_event("DEVICE_CONNECT_REQUESTED", resource_type="device", resource_id=device_id, device_id=device_id, metadata={"viewer_id": pending["viewer_id"]})
     return jsonify({
         "device_id": device_id,
         "viewer_id": pending["viewer_id"],
         "expires_at": pending["expires_at"],
         "last_seen_address": device.get("last_seen_address"),
-        "note": "Connect with: viewer_p12.py <host-address>:<video-port> --id "
-                f"{pending['viewer_id']} (no --password) - the host recognizes this "
-                "one-time ID via the admin console instead. last_seen_address is a "
-                "best-effort hint (where this device last reached the console from), "
-                "not a guaranteed reachable address.",
     })
+
+
+# --- Audit Log Console Routes ----------------------------------------------
+
+@app.route("/audit")
+@require_permission("audit.read")
+def audit_log_view():
+    conn = get_db()
+    page = int(request.args.get("page", 1))
+    per_page = 50
+    offset = (page - 1) * per_page
+    action_filter = request.args.get("action") or None
+    actor_filter = request.args.get("actor") or None
+
+    actor_id = None
+    if actor_filter:
+        u = store.get_user_by_username(conn, actor_filter)
+        if u:
+            actor_id = u["id"]
+
+    events = store.list_audit_events(conn, action=action_filter, actor_user_id=actor_id, limit=per_page, offset=offset)
+    total = store.count_audit_events(conn, action=action_filter, actor_user_id=actor_id)
+    integrity_ok, bad_id, err_msg = store.verify_audit_log_integrity(conn)
+
+    return render_template("audit.html", events=events, page=page, total=total, per_page=per_page,
+                            action_filter=action_filter, actor_filter=actor_filter,
+                            integrity_ok=integrity_ok, bad_id=bad_id, err_msg=err_msg)
+
+
+@app.route("/audit/export")
+@require_permission("audit.export")
+def audit_export():
+    conn = get_db()
+    fmt = request.args.get("format", "csv")
+    events = store.list_audit_events(conn, limit=5000)
+    audit_event("AUDIT_EXPORT", metadata={"format": fmt, "count": len(events)})
+
+    if fmt == "json":
+        return jsonify(events)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Timestamp", "Actor User", "Actor Type", "Action", "Resource Type", "Resource ID", "IP Address", "Request ID", "Metadata"])
+    for e in events:
+        writer.writerow([e["id"], e["created_at"], e.get("actor_username") or e.get("actor_user_id"), e["actor_type"], e["action"], e.get("resource_type"), e.get("resource_id"), e.get("ip_address"), e.get("request_id"), e.get("metadata")])
+
+    return output.getvalue(), 200, {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": f"attachment; filename=audit_export_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    }
 
 
 # --- First-run bootstrap ---------------------------------------------------

@@ -67,6 +67,91 @@ def get_conn(db_path: str = DB_PATH):
 
 
 _SCHEMA = """
+        CREATE TABLE IF NOT EXISTS users (
+            id {PK},
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
+            password_salt TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            display_name TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            totp_secret TEXT,
+            totp_enabled INTEGER NOT NULL DEFAULT 0,
+            totp_last_step BIGINT NOT NULL DEFAULT 0,
+            totp_recovery TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_login_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+        CREATE TABLE IF NOT EXISTS organizations (
+            id {PK},
+            name TEXT NOT NULL,
+            slug TEXT UNIQUE NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS roles (
+            id {PK},
+            name TEXT UNIQUE NOT NULL,
+            description TEXT,
+            is_system INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS permissions (
+            id {PK},
+            code TEXT UNIQUE NOT NULL,
+            description TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS role_permissions (
+            role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+            permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+            PRIMARY KEY (role_id, permission_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS organization_members (
+            id {PK},
+            organization_id INTEGER NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role_id INTEGER NOT NULL REFERENCES roles(id),
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(organization_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
+        CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
+
+        CREATE TABLE IF NOT EXISTS audit_events (
+            id {PK},
+            organization_id INTEGER REFERENCES organizations(id),
+            actor_user_id INTEGER REFERENCES users(id),
+            actor_type TEXT NOT NULL DEFAULT 'user',
+            action TEXT NOT NULL,
+            resource_type TEXT,
+            resource_id TEXT,
+            target_user_id INTEGER REFERENCES users(id),
+            device_id TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            request_id TEXT,
+            metadata TEXT,
+            previous_hash TEXT,
+            event_hash TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_audit_org ON audit_events(organization_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_events(actor_user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events(action);
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events(created_at);
+
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
@@ -369,21 +454,70 @@ def init_db(db_path: str = DB_PATH):
     conn.executescript(_SCHEMA.replace("{PK}", _pk(conn)))
     conn.commit()
 
-    # Phase 10 and 11 each added columns to tables that already existed under
-    # earlier phases; ALTER TABLE upgrades a database created before the
-    # column existed (CREATE TABLE IF NOT EXISTS above only helps a
-    # brand-new database).
+    # Column upgrades for existing databases
     _ensure_column(conn, "groups", "auto_update", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(conn, "devices", "current_version", "TEXT")
     _ensure_column(conn, "devices", "mac_address", "TEXT")
     _ensure_column(conn, "devices", "last_seen_address", "TEXT")
     _ensure_column(conn, "devices", "revoked_at", "TEXT")   # relay access revoked when set
-    # Console 2FA (TOTP). totp_last_step blocks replaying a code inside its validity window;
-    # totp_recovery is a JSON list of SHA-256 hashes of the unused single-use recovery codes.
+    _ensure_column(conn, "devices", "organization_id", "INTEGER REFERENCES organizations(id)")
+    _ensure_column(conn, "devices", "owner_user_id", "INTEGER REFERENCES users(id)")
+
     _ensure_column(conn, "admin_users", "totp_secret", "TEXT")
     _ensure_column(conn, "admin_users", "totp_enabled", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(conn, "admin_users", "totp_last_step", "BIGINT NOT NULL DEFAULT 0")
     _ensure_column(conn, "admin_users", "totp_recovery", "TEXT")
+
+    _ensure_column(conn, "api_keys", "prefix", "TEXT")
+    _ensure_column(conn, "api_keys", "organization_id", "INTEGER REFERENCES organizations(id)")
+    _ensure_column(conn, "api_keys", "created_by", "INTEGER REFERENCES users(id)")
+    _ensure_column(conn, "api_keys", "scopes", "TEXT NOT NULL DEFAULT 'device.read device.wake'")
+    _ensure_column(conn, "api_keys", "status", "TEXT NOT NULL DEFAULT 'active'")
+    _ensure_column(conn, "api_keys", "expires_at", "TEXT")
+    _ensure_column(conn, "api_keys", "revoked_at", "TEXT")
+
+    # Seed Default Organization
+    org_row = conn.execute("SELECT id FROM organizations WHERE slug = 'default'").fetchone()
+    if not org_row:
+        conn.execute("INSERT INTO organizations (name, slug, status, created_at, updated_at) VALUES (?, ?, 'active', ?, ?)",
+                     ("Default Org", "default", _now_iso(), _now_iso()))
+        conn.commit()
+
+    # Seed RBAC system
+    import rbac
+    rbac.seed_rbac(conn)
+
+    # Data Migration: Migrate legacy admin_users to users and organization_members
+    try:
+        legacy_users = conn.execute("SELECT * FROM admin_users").fetchall()
+        roles_map = {r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM roles").fetchall()}
+        default_role_id = roles_map.get("user")
+        for u in legacy_users:
+            u_dict = dict(u)
+            existing = conn.execute("SELECT id FROM users WHERE username = ?", (u_dict["username"],)).fetchone()
+            if not existing:
+                now = u_dict.get("created_at") or _now_iso()
+                cur = conn.execute(
+                    """INSERT INTO users (username, password_salt, password_hash, status, totp_secret,
+                                          totp_enabled, totp_last_step, totp_recovery, created_at, updated_at)
+                       VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)""",
+                    (u_dict["username"], u_dict["password_salt"], u_dict["password_hash"],
+                     u_dict.get("totp_secret"), u_dict.get("totp_enabled", 0),
+                     u_dict.get("totp_last_step", 0), u_dict.get("totp_recovery"),
+                     now, now)
+                )
+                user_id = cur.lastrowid
+                role_name = u_dict.get("role", "admin")
+                role_id = roles_map.get(role_name, default_role_id)
+                conn.execute(
+                    """INSERT INTO organization_members (organization_id, user_id, role_id, status, created_at, updated_at)
+                       VALUES (1, ?, ?, 'active', ?, ?)
+                       ON CONFLICT DO NOTHING""",
+                    (user_id, role_id, now, now)
+                )
+        conn.commit()
+    except Exception:
+        pass
 
     if get_group_by_name(conn, DEFAULT_GROUP_NAME) is None:
         create_group(conn, DEFAULT_GROUP_NAME, {})  # {} -> all columns keep their permissive defaults
@@ -444,43 +578,138 @@ def _verify_password(password: str, salt_b64: str, hash_b64: str) -> bool:
 
 # --- Admin users (console operators, not remote-session viewers) ---------
 
-def count_admin_users(conn) -> int:
-    return conn.execute("SELECT COUNT(*) AS n FROM admin_users").fetchone()["n"]
-
-
-def create_admin_user(conn, username: str, password: str,
-                       role: str = "admin") -> int:
-    if role not in ("admin", "auditor"):
-        raise ValueError("role must be 'admin' or 'auditor'")
+def create_user(conn, username: str, password: str, email: str = None,
+                display_name: str = None, role: str = "user", organization_id: int = 1) -> int:
+    if role not in ("admin", "auditor", "user"):
+        raise ValueError("role must be 'admin', 'auditor', or 'user'")
     salt_b64, hash_b64 = _hash_password(password)
+    now = _now_iso()
     try:
         cur = conn.execute(
-            """INSERT INTO admin_users (username, password_salt, password_hash, role, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (username, salt_b64, hash_b64, role, _now_iso()),
+            """INSERT INTO users (username, email, password_salt, password_hash, display_name, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, 'active', ?, ?)""",
+            (username.strip(), email.strip() if email else None, salt_b64, hash_b64, display_name, now, now)
         )
+        user_id = cur.lastrowid
     except IntegrityError:
         raise ValueError(f"username '{username}' is already taken")
+
+    # Get role_id
+    role_row = conn.execute("SELECT id FROM roles WHERE name = ?", (role,)).fetchone()
+    role_id = role_row["id"] if role_row else 3
+    conn.execute(
+        """INSERT INTO organization_members (organization_id, user_id, role_id, status, created_at, updated_at)
+           VALUES (?, ?, ?, 'active', ?, ?)""",
+        (organization_id, user_id, role_id, now, now)
+    )
+
+    # Sync to legacy admin_users table for backward compatibility
+    try:
+        conn.execute(
+            """INSERT INTO admin_users (username, password_salt, password_hash, role, created_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(username) DO UPDATE SET password_salt=excluded.password_salt, password_hash=excluded.password_hash, role=excluded.role""",
+            (username.strip(), salt_b64, hash_b64, role, now)
+        )
+    except Exception:
+        pass
+
     conn.commit()
-    return cur.lastrowid
+    return user_id
+
+
+def create_admin_user(conn, username: str, password: str, role: str = "admin") -> int:
+    return create_user(conn, username=username, password=password, role=role)
+
+
+def update_user_role(conn, user_id: int, new_role: str, organization_id: int = 1) -> None:
+    if new_role not in ("admin", "auditor", "user"):
+        raise ValueError("role must be 'admin', 'auditor', or 'user'")
+    role_row = conn.execute("SELECT id FROM roles WHERE name = ?", (new_role,)).fetchone()
+    if not role_row:
+        raise ValueError("No such role")
+    now = _now_iso()
+    conn.execute(
+        """UPDATE organization_members SET role_id = ?, updated_at = ?
+           WHERE user_id = ? AND organization_id = ?""",
+        (role_row["id"], now, user_id, organization_id)
+    )
+    u = get_user_by_id(conn, user_id)
+    if u:
+        conn.execute("UPDATE admin_users SET role = ? WHERE username = ?", (new_role, u["username"]))
+    conn.commit()
+
+
+def get_user_by_id(conn, user_id: int):
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not row:
+        leg = conn.execute("SELECT * FROM admin_users WHERE id = ?", (user_id,)).fetchone()
+        return dict(leg) if leg else None
+    u_dict = dict(row)
+    import rbac
+    u_dict["role"] = rbac.get_user_role(conn, user_id)
+    return u_dict
+
+
+def get_user_by_username(conn, username: str):
+    row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    if not row:
+        leg = conn.execute("SELECT * FROM admin_users WHERE username = ?", (username,)).fetchone()
+        return dict(leg) if leg else None
+    u_dict = dict(row)
+    import rbac
+    u_dict["role"] = rbac.get_user_role(conn, u_dict["id"])
+    return u_dict
+
+
+def get_admin_user(conn, user_id_or_username):
+    if isinstance(user_id_or_username, int) or (isinstance(user_id_or_username, str) and user_id_or_username.isdigit()):
+        return get_user_by_id(conn, int(user_id_or_username))
+    return get_user_by_username(conn, str(user_id_or_username))
 
 
 def verify_login(conn, username: str, password: str):
-    row = conn.execute("SELECT * FROM admin_users WHERE username = ?", (username,)).fetchone()
-    if row is None or not _verify_password(password, row["password_salt"], row["password_hash"]):
+    user = get_user_by_username(conn, username)
+    if user is None or user.get("status") in ("suspended", "disabled"):
         return None
-    return {"id": row["id"], "username": row["username"], "role": row["role"]}
+    if not _verify_password(password, user["password_salt"], user["password_hash"]):
+        return None
+    now = _now_iso()
+    if "id" in user:
+        conn.execute("UPDATE users SET last_login_at = ? WHERE id = ?", (now, user["id"]))
+        conn.commit()
+    return {"id": user["id"], "username": user["username"], "role": user["role"]}
+
+
+def count_admin_users(conn) -> int:
+    n1 = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
+    if n1 > 0:
+        return n1
+    return conn.execute("SELECT COUNT(*) AS n FROM admin_users").fetchone()["n"]
 
 
 def list_admin_users(conn) -> list:
-    rows = conn.execute("SELECT id, username, role, created_at, totp_enabled FROM admin_users ORDER BY username").fetchall()
-    return [dict(r) for r in rows]
+    rows = conn.execute("SELECT * FROM users ORDER BY username").fetchall()
+    if not rows:
+        leg_rows = conn.execute("SELECT id, username, role, created_at, totp_enabled FROM admin_users ORDER BY username").fetchall()
+        return [dict(r) for r in leg_rows]
+    import rbac
+    res = []
+    for r in rows:
+        d = dict(r)
+        d["role"] = rbac.get_user_role(conn, d["id"])
+        res.append(d)
+    return res
 
 
 def delete_admin_user(conn, user_id: int) -> None:
     if count_admin_users(conn) <= 1:
         raise ValueError("cannot delete the last remaining console operator")
-    conn.execute("DELETE FROM admin_users WHERE id = ?", (user_id,))
+    u = get_user_by_id(conn, user_id)
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.execute("DELETE FROM organization_members WHERE user_id = ?", (user_id,))
+    if u:
+        conn.execute("DELETE FROM admin_users WHERE username = ?", (u["username"],))
     conn.commit()
 
 
@@ -985,33 +1214,163 @@ def _hash_api_key(raw_key: str) -> str:
     return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
 
-def create_api_key(conn, label: str) -> str:
-    raw_key = "dvfy_" + secrets.token_urlsafe(32)
-    conn.execute("INSERT INTO api_keys (key_hash, label, created_at) VALUES (?, ?, ?)",
-                 (_hash_api_key(raw_key), label.strip() or "unlabeled", _now_iso()))
+def create_api_key(conn, label: str, scopes: str = "device.read device.wake device.connect feedback.read session.read",
+                   organization_id: int = 1, created_by: int = None, expires_in_days: int = None) -> str:
+    raw_key = "rb_live_" + secrets.token_hex(24)
+    prefix = raw_key[:12]
+    now = _now_iso()
+    expires_at = None
+    if expires_in_days:
+        expires_at = datetime.fromtimestamp(time.time() + expires_in_days * 86400, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    cur = conn.execute(
+        """INSERT INTO api_keys (key_hash, prefix, label, organization_id, created_by, scopes, status, created_at, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)""",
+        (_hash_api_key(raw_key), prefix, label.strip() or "unlabeled", organization_id, created_by, scopes.strip(), now, expires_at)
+    )
     conn.commit()
     return raw_key
 
 
-def verify_api_key(conn, raw_key: str):
-    row = conn.execute("SELECT * FROM api_keys WHERE key_hash = ?",
-                        (_hash_api_key(raw_key),)).fetchone()
+def verify_api_key(conn, raw_key: str, required_permission: str = None):
+    row = conn.execute("SELECT * FROM api_keys WHERE key_hash = ?", (_hash_api_key(raw_key),)).fetchone()
     if row is None:
         return None
-    conn.execute("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (_now_iso(), row["id"]))
+    r_dict = dict(row)
+    if r_dict.get("status") != "active" or r_dict.get("revoked_at"):
+        return None
+    if r_dict.get("expires_at") and r_dict["expires_at"] <= _now_iso():
+        return None
+
+    scopes_set = set((r_dict.get("scopes") or "").split())
+    if required_permission and required_permission not in scopes_set and "*" not in scopes_set:
+        return None
+
+    now = _now_iso()
+    conn.execute("UPDATE api_keys SET last_used_at = ? WHERE id = ?", (now, r_dict["id"]))
     conn.commit()
-    return dict(row)
+    r_dict["scopes_list"] = list(scopes_set)
+    return r_dict
 
 
-def list_api_keys(conn) -> list:
-    rows = conn.execute("SELECT id, label, created_at, last_used_at FROM api_keys "
-                         "ORDER BY created_at DESC").fetchall()
+def list_api_keys(conn, organization_id: int = 1) -> list:
+    rows = conn.execute(
+        """SELECT id, prefix, label, scopes, status, created_at, last_used_at, expires_at
+           FROM api_keys WHERE (organization_id = ? OR organization_id IS NULL) AND status = 'active' AND revoked_at IS NULL
+           ORDER BY created_at DESC""",
+        (organization_id,)
+    ).fetchall()
     return [dict(r) for r in rows]
 
 
 def revoke_api_key(conn, key_id: int) -> None:
-    conn.execute("DELETE FROM api_keys WHERE id = ?", (key_id,))
+    now = _now_iso()
+    conn.execute("UPDATE api_keys SET status = 'revoked', revoked_at = ? WHERE id = ?", (now, key_id))
     conn.commit()
+
+
+# --- Audit Events & Tamper-Evident Hash Chaining -------------------------
+
+def record_audit_event(conn, action: str, actor_user_id: int = None, actor_type: str = "user",
+                       resource_type: str = None, resource_id: str = None,
+                       target_user_id: int = None, device_id: str = None,
+                       ip_address: str = None, user_agent: str = None,
+                       request_id: str = None, metadata: dict = None,
+                       organization_id: int = 1) -> int:
+    now = _now_iso()
+    meta_json = json.dumps(metadata) if metadata else None
+
+    # Retrieve previous hash for tamper-evident chaining
+    row = conn.execute("SELECT event_hash FROM audit_events ORDER BY id DESC LIMIT 1").fetchone()
+    prev_hash = row["event_hash"] if row and row["event_hash"] else "GENESIS"
+
+    res_id_str = str(resource_id) if resource_id is not None else ""
+    hash_payload = f"{prev_hash}:{action}:{actor_user_id or ''}:{resource_type or ''}:{res_id_str}:{now}:{meta_json or ''}"
+    event_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
+
+    cur = conn.execute(
+        """INSERT INTO audit_events 
+           (organization_id, actor_user_id, actor_type, action, resource_type, resource_id,
+            target_user_id, device_id, ip_address, user_agent, request_id, metadata,
+            previous_hash, event_hash, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (organization_id, actor_user_id, actor_type, action, resource_type, res_id_str if res_id_str else None,
+         target_user_id, device_id, ip_address, user_agent, request_id, meta_json,
+         prev_hash, event_hash, now)
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def list_audit_events(conn, organization_id: int = 1, actor_user_id: int = None,
+                      action: str = None, resource_type: str = None,
+                      device_id: str = None, limit: int = 100, offset: int = 0) -> list:
+    clauses = ["(organization_id = ? OR organization_id IS NULL)"]
+    params = [organization_id]
+    if actor_user_id:
+        clauses.append("actor_user_id = ?")
+        params.append(actor_user_id)
+    if action:
+        clauses.append("action = ?")
+        params.append(action)
+    if resource_type:
+        clauses.append("resource_type = ?")
+        params.append(resource_type)
+    if device_id:
+        clauses.append("device_id = ?")
+        params.append(device_id)
+
+    where = "WHERE " + " AND ".join(clauses)
+    params.extend([limit, offset])
+
+    rows = conn.execute(
+        f"""SELECT ae.*, u.username as actor_username, tu.username as target_username
+            FROM audit_events ae
+            LEFT JOIN users u ON ae.actor_user_id = u.id
+            LEFT JOIN users tu ON ae.target_user_id = tu.id
+            {where}
+            ORDER BY ae.id DESC LIMIT ? OFFSET ?""",
+        params
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_audit_events(conn, organization_id: int = 1, actor_user_id: int = None,
+                       action: str = None, resource_type: str = None, device_id: str = None) -> int:
+    clauses = ["(organization_id = ? OR organization_id IS NULL)"]
+    params = [organization_id]
+    if actor_user_id:
+        clauses.append("actor_user_id = ?")
+        params.append(actor_user_id)
+    if action:
+        clauses.append("action = ?")
+        params.append(action)
+    if resource_type:
+        clauses.append("resource_type = ?")
+        params.append(resource_type)
+    if device_id:
+        clauses.append("device_id = ?")
+        params.append(device_id)
+
+    where = "WHERE " + " AND ".join(clauses)
+    row = conn.execute(f"SELECT COUNT(*) AS n FROM audit_events {where}", params).fetchone()
+    return row["n"] if row else 0
+
+
+def verify_audit_log_integrity(conn) -> tuple:
+    rows = conn.execute("SELECT * FROM audit_events ORDER BY id ASC").fetchall()
+    prev_hash = "GENESIS"
+    for r in rows:
+        d = dict(r)
+        if d.get("previous_hash") != prev_hash:
+            return False, d["id"], f"previous_hash mismatch on event {d['id']}"
+        res_id_str = str(d["resource_id"]) if d["resource_id"] is not None else ""
+        hash_payload = f"{prev_hash}:{d['action']}:{d['actor_user_id'] or ''}:{d['resource_type'] or ''}:{res_id_str}:{d['created_at']}:{d['metadata'] or ''}"
+        expected_hash = hashlib.sha256(hash_payload.encode("utf-8")).hexdigest()
+        if d.get("event_hash") != expected_hash:
+            return False, d["id"], f"event_hash mismatch on event {d['id']}"
+        prev_hash = expected_hash
+    return True, 0, "OK"
 
 
 # --- Phase 11: one-time pre-authorized connections, issued by

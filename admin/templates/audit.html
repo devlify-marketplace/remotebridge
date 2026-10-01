@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Audit Log") }}{% endblock %}
+{% block content %}
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <h1>{{ _("Audit Log & Security Events") }}</h1>
+      <div class="subtitle">{{ _("Tamper-evident system activity, security events, and administrative action logs.") }}</div>
+    </div>
+    {% if has_perm('audit.export') %}
+    <div>
+      <a href="{{ url_for('audit_export', format='csv') }}" class="btn btn-quiet" style="margin-right:8px;">{{ _("Export CSV") }}</a>
+      <a href="{{ url_for('audit_export', format='json') }}" class="btn btn-quiet" target="_blank">{{ _("Export JSON") }}</a>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not integrity_ok %}
+  <div class="flash flash-error" style="margin-top:16px;">
+    <strong>{{ _("SECURITY WARNING") }}:</strong> {{ _("Audit log tamper verification failed!") }} {{ err_msg }} (Event ID: {{ bad_id }})
+  </div>
+  {% else %}
+  <div class="flash flash-ok" style="margin-top:16px; background:rgba(40,167,69,0.1); border-color:#28a745;">
+    ✓ {{ _("Audit Log Integrity Verified: SHA-256 Hash Chain Intact.") }}
+  </div>
+  {% endif %}
+
+  <div class="panel" style="margin-top:20px;">
+    <form method="get" action="{{ url_for('audit_log_view') }}" style="display:flex; gap:12px; align-items:flex-end; margin-bottom:16px;">
+      <div>
+        <label for="action">{{ _("Action") }}</label>
+        <input type="text" id="action" name="action" value="{{ action_filter or '' }}" placeholder="{{ _('e.g. USER_LOGIN') }}">
+      </div>
+      <div>
+        <label for="actor">{{ _("Actor Username") }}</label>
+        <input type="text" id="actor" name="actor" value="{{ actor_filter or '' }}" placeholder="{{ _('e.g. admin') }}">
+      </div>
+      <button class="btn" type="submit">{{ _("Filter") }}</button>
+      {% if action_filter or actor_filter %}
+      <a href="{{ url_for('audit_log_view') }}" class="btn btn-quiet">{{ _("Clear") }}</a>
+      {% endif %}
+    </form>
+
+    <table style="width:100%;">
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">{{ _("Timestamp") }}</th>
+          <th scope="col">{{ _("Actor") }}</th>
+          <th scope="col">{{ _("Action") }}</th>
+          <th scope="col">{{ _("Resource") }}</th>
+          <th scope="col">{{ _("IP Address") }}</th>
+          <th scope="col">{{ _("Details / Metadata") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in events %}
+        <tr>
+          <td class="mono">{{ e.id }}</td>
+          <td class="mono">{{ e.created_at }}</td>
+          <td>
+            <strong>{{ e.actor_username or e.actor_user_id or e.actor_type }}</strong>
+            <span class="badge badge-neutral" style="font-size:0.75rem;">{{ e.actor_type }}</span>
+          </td>
+          <td>
+            <span class="badge {% if 'DENIED' in e.action or 'FAILED' in e.action or 'DELETE' in e.action %}badge-error{% elif 'CREATE' in e.action or 'LOGIN' in e.action %}badge-success{% else %}badge-neutral{% endif %}">
+              {{ e.action }}
+            </span>
+          </td>
+          <td class="mono">
+            {% if e.resource_type %}{{ e.resource_type }}{% if e.resource_id %}: {{ e.resource_id }}{% endif %}{% else %}-{% endif %}
+          </td>
+          <td class="mono">{{ e.ip_address or '-' }}</td>
+          <td style="max-width:250px; word-break:break-all; font-size:0.85rem;" class="mono">
+            {{ e.metadata or '-' }}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">
+            {{ _("No audit log events found matching criteria.") }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total > per_page %}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+      <div>{{ _("Showing {start} - {end} of {total} events", start=(page-1)*per_page + 1, end=[page*per_page, total]|min, total=total) }}</div>
+      <div>
+        {% if page > 1 %}
+        <a href="{{ url_for('audit_log_view', page=page-1, action=action_filter, actor=actor_filter) }}" class="btn btn-quiet">&laquo; {{ _("Previous") }}</a>
+        {% endif %}
+        {% if page * per_page < total %}
+        <a href="{{ url_for('audit_log_view', page=page+1, action=action_filter, actor=actor_filter) }}" class="btn btn-quiet" style="margin-left:8px;">{{ _("Next") }} &raquo;</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+{% endblock %}
