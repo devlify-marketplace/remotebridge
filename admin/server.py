@@ -765,6 +765,112 @@ def account_2fa_disable():
     return redirect(url_for("account_security"))
 
 
+# --- Phase 3: Profile & Organization Management ----------------------------
+
+@app.route("/profile")
+@login_required
+def profile():
+    conn = get_db()
+    me = store.get_user_by_id(conn, session["user_id"])
+    if not me:
+        return redirect(url_for("login"))
+    org = store.get_organization(conn, me.get("organization_id") or 1)
+    setup = None
+    if session.get("totp_setup"):
+        setup = {"secret": session["totp_setup"], "uri": store.totp_uri(session["totp_setup"], me["username"])}
+    left = store.count_recovery_codes_left(conn, me["id"]) if me.get("totp_enabled") else 0
+    return render_template("profile.html", user=me, org=org, setup=setup, recovery_left=left,
+                           new_codes=session.pop("_recovery_codes", None), required_2fa=REQUIRE_2FA)
+
+
+@app.route("/profile/update", methods=["POST"])
+@login_required
+def profile_update():
+    conn = get_db()
+    email = request.form.get("email", "").strip()
+    display_name = request.form.get("display_name", "").strip()
+    store.update_user_profile(conn, session["user_id"], email=email, display_name=display_name)
+    store.record_audit_event(conn, action="USER_PROFILE_UPDATED", actor_user_id=session["user_id"], resource_type="user", resource_id=str(session["user_id"]))
+    flash(tr("Profile updated successfully."), "ok")
+    return redirect(url_for("profile"))
+
+
+@app.route("/account/password", methods=["POST"])
+@login_required
+def account_password_change():
+    conn = get_db()
+    current_pw = request.form.get("current_password", "")
+    new_pw = request.form.get("new_password", "")
+    confirm_pw = request.form.get("confirm_password", "")
+
+    if new_pw != confirm_pw:
+        flash(tr("New passwords do not match."), "error")
+        return redirect(url_for("profile"))
+
+    try:
+        ok = store.change_user_password(conn, session["user_id"], current_pw, new_pw)
+        if ok:
+            store.record_audit_event(conn, action="PASSWORD_CHANGED", actor_user_id=session["user_id"], resource_type="user", resource_id=str(session["user_id"]))
+            flash(tr("Password updated successfully."), "ok")
+        else:
+            flash(tr("Current password was incorrect."), "error")
+    except ValueError as e:
+        flash(str(e), "error")
+    return redirect(url_for("profile"))
+
+
+@app.route("/organization")
+@require_permission("organization.read")
+def organization():
+    conn = get_db()
+    org_id = session.get("organization_id", 1)
+    org = store.get_organization(conn, org_id) or {"id": 1, "name": "Default Org", "slug": "default-org", "status": "active", "created_at": ""}
+    members = store.get_organization_members(conn, org_id)
+    return render_template("organization.html", org=org, members=members, current_user_id=session.get("user_id"))
+
+
+@app.route("/organization/update", methods=["POST"])
+@require_permission("organization.manage")
+def organization_update():
+    conn = get_db()
+    org_id = session.get("organization_id", 1)
+    name = request.form.get("name", "").strip()
+    slug = request.form.get("slug", "").strip()
+    if name:
+        store.update_organization(conn, org_id, name, slug)
+        store.record_audit_event(conn, action="ORGANIZATION_UPDATED", actor_user_id=session.get("user_id"), resource_type="organization", resource_id=str(org_id))
+        flash(tr("Organization settings updated."), "ok")
+    return redirect(url_for("organization"))
+
+
+@app.route("/users/<int:user_id>/role", methods=["POST"])
+@require_permission("role.manage")
+def change_user_role(user_id):
+    conn = get_db()
+    new_role = request.form.get("role", "user")
+    org_id = session.get("organization_id", 1)
+    try:
+        store.update_user_role(conn, user_id, new_role, organization_id=org_id)
+        store.record_audit_event(conn, action="USER_ROLE_CHANGED", actor_user_id=session.get("user_id"), resource_type="user", resource_id=str(user_id), metadata={"new_role": new_role})
+        flash(tr("User role updated."), "ok")
+    except ValueError as e:
+        flash(str(e), "error")
+    return redirect(url_for("organization"))
+
+
+@app.route("/users/<int:user_id>/status", methods=["POST"])
+@require_permission("user.update")
+def toggle_user_status(user_id):
+    conn = get_db()
+    target_user = store.get_user_by_id(conn, user_id)
+    if target_user:
+        new_status = "suspended" if target_user.get("status") == "active" else "active"
+        store.set_user_status(conn, user_id, new_status)
+        store.record_audit_event(conn, action="USER_STATUS_CHANGED", actor_user_id=session.get("user_id"), resource_type="user", resource_id=str(user_id), metadata={"new_status": new_status})
+        flash(tr("User status updated."), "ok")
+    return redirect(url_for("organization"))
+
+
 # --- Console operator accounts ---------------------------------------------
 
 @app.route("/users")

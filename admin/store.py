@@ -669,6 +669,59 @@ def update_user_role(conn, user_id: int, new_role: str, organization_id: int = 1
     conn.commit()
 
 
+def update_user_profile(conn, user_id: int, email: str = None, display_name: str = None) -> None:
+    now = _now_iso()
+    conn.execute(
+        """UPDATE users SET email = ?, display_name = ?, updated_at = ? WHERE id = ?""",
+        (email.strip() if email else None, display_name.strip() if display_name else None, now, user_id)
+    )
+    conn.commit()
+
+
+def change_user_password(conn, user_id: int, old_password: str, new_password: str) -> bool:
+    user = get_user_by_id(conn, user_id)
+    if not user:
+        return False
+    if not _verify_password(old_password, user["password_salt"], user["password_hash"]):
+        return False
+    if len(new_password) < 6:
+        raise ValueError("Password must be at least 6 characters.")
+    salt_b64, hash_b64 = _hash_password(new_password)
+    now = _now_iso()
+    conn.execute(
+        """UPDATE users SET password_salt = ?, password_hash = ?, updated_at = ? WHERE id = ?""",
+        (salt_b64, hash_b64, now, user_id)
+    )
+    try:
+        conn.execute(
+            """UPDATE admin_users SET password_salt = ?, password_hash = ? WHERE username = ?""",
+            (salt_b64, hash_b64, user["username"])
+        )
+    except Exception:
+        pass
+    conn.commit()
+    return True
+
+
+def update_organization(conn, organization_id: int, name: str, slug: str = None) -> None:
+    now = _now_iso()
+    s = slug or name.lower().replace(" ", "-")
+    conn.execute(
+        """UPDATE organizations SET name = ?, slug = ?, updated_at = ? WHERE id = ?""",
+        (name.strip(), s.strip(), now, organization_id)
+    )
+    conn.commit()
+
+
+def set_user_status(conn, user_id: int, status: str) -> None:
+    if status not in ("active", "suspended", "disabled"):
+        raise ValueError("Invalid status")
+    now = _now_iso()
+    conn.execute("UPDATE users SET status = ?, updated_at = ? WHERE id = ?", (status, now, user_id))
+    conn.execute("UPDATE organization_members SET status = ?, updated_at = ? WHERE user_id = ?", (status, now, user_id))
+    conn.commit()
+
+
 def get_user_by_id(conn, user_id: int):
     row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not row:

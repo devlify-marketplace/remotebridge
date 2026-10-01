@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Organization Management") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Organization Management") }}</h1>
+  <div class="subtitle">{{ _("Manage enterprise organization profile, multi-tenant membership, and operator RBAC roles.") }}</div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-top: 20px;">
+    <!-- Organization Details Panel -->
+    <div class="panel">
+      <h2>{{ _("Organization Info") }}</h2>
+      {% if has_perm('organization.manage') %}
+      <form method="post" action="{{ url_for('organization_update') }}">
+        {{ csrf_input() }}
+        <label for="org_name">{{ _("Organization Name") }}</label>
+        <input type="text" id="org_name" name="name" value="{{ org.name }}" required>
+
+        <label for="org_slug" style="margin-top: 12px;">{{ _("Slug Identifier") }}</label>
+        <input type="text" id="org_slug" name="slug" value="{{ org.slug }}" required>
+
+        <button class="btn" type="submit" style="margin-top: 18px;">{{ _("Update Organization") }}</button>
+      </form>
+      {% else %}
+        <p><strong>{{ _("Name:") }}</strong> {{ org.name }}</p>
+        <p><strong>{{ _("Slug:") }}</strong> <code>{{ org.slug }}</code></p>
+      {% endif %}
+      <div style="margin-top: 16px; font-size: 0.9em; color: var(--muted);">
+        <p><strong>{{ _("Status:") }}</strong> <span class="badge badge-neutral">{{ org.status|upper }}</span></p>
+        <p><strong>{{ _("Total Members:") }}</strong> {{ members|length }}</p>
+        <p><strong>{{ _("Created:") }}</strong> {{ org.created_at[:10] if org.created_at else 'N/A' }}</p>
+      </div>
+    </div>
+
+    <!-- Add Member Panel -->
+    {% if has_perm('user.create') %}
+    <div class="panel">
+      <h2>{{ _("Add Organization Member") }}</h2>
+      <form method="post" action="{{ url_for('new_user') }}">
+        {{ csrf_input() }}
+        <label for="new_username">{{ _("Username") }}</label>
+        <input type="text" id="new_username" name="username" required autocomplete="off">
+
+        <label for="new_password" style="margin-top: 12px;">{{ _("Temporary Password") }}</label>
+        <input type="password" id="new_password" name="password" required minlength="6" autocomplete="new-password">
+
+        <label for="new_role" style="margin-top: 12px;">{{ _("Assigned Role") }}</label>
+        <select id="new_role" name="role" required>
+          <option value="user">{{ _("User (Operator)") }}</option>
+          <option value="auditor">{{ _("Auditor (Read-Only)") }}</option>
+          <option value="admin">{{ _("Admin (Full Access)") }}</option>
+        </select>
+
+        <button class="btn" type="submit" style="margin-top: 18px;">{{ _("Add Member") }}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Members List Table -->
+  <div class="panel" style="margin-top: 24px;">
+    <h2>{{ _("Organization Members & RBAC Roles") }}</h2>
+    <table class="table" style="width: 100%; margin-top: 16px;">
+      <thead>
+        <tr>
+          <th>{{ _("User") }}</th>
+          <th>{{ _("Role") }}</th>
+          <th>{{ _("Status") }}</th>
+          <th>{{ _("Joined") }}</th>
+          {% if has_perm('role.manage') %}
+          <th>{{ _("Actions") }}</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td>
+            <strong>{{ m.username }}</strong>
+            {% if m.display_name %}<br><small style="color: var(--muted);">{{ m.display_name }}</small>{% endif %}
+          </td>
+          <td>
+            <span class="badge {% if m.role_name == 'admin' %}badge-accent{% elif m.role_name == 'auditor' %}badge-neutral{% else %}badge-default{% endif %}">
+              {{ m.role_name|upper }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if m.status == 'active' %}badge-neutral{% else %}badge-danger{% endif %}">
+              {{ m.status|upper }}
+            </span>
+          </td>
+          <td>{{ m.created_at[:10] if m.created_at else 'N/A' }}</td>
+          {% if has_perm('role.manage') %}
+          <td>
+            {% if m.user_id != current_user_id %}
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <form method="post" action="{{ url_for('change_user_role', user_id=m.user_id) }}" style="display: inline-flex; gap: 4px;">
+                {{ csrf_input() }}
+                <select name="role" style="padding: 4px 8px; font-size: 0.85em;">
+                  <option value="user" {% if m.role_name == 'user' %}selected{% endif %}>User</option>
+                  <option value="auditor" {% if m.role_name == 'auditor' %}selected{% endif %}>Auditor</option>
+                  <option value="admin" {% if m.role_name == 'admin' %}selected{% endif %}>Admin</option>
+                </select>
+                <button class="btn btn-quiet" type="submit" style="padding: 4px 8px; font-size: 0.85em;">{{ _("Set Role") }}</button>
+              </form>
+
+              <form method="post" action="{{ url_for('toggle_user_status', user_id=m.user_id) }}" style="display: inline;">
+                {{ csrf_input() }}
+                {% if m.status == 'active' %}
+                <button class="btn btn-quiet" type="submit" style="padding: 4px 8px; font-size: 0.85em; color: var(--danger, #ff4d4f);">{{ _("Suspend") }}</button>
+                {% else %}
+                <button class="btn btn-quiet" type="submit" style="padding: 4px 8px; font-size: 0.85em;">{{ _("Activate") }}</button>
+                {% endif %}
+              </form>
+            </div>
+            {% else %}
+            <small style="color: var(--muted);">{{ _("(Your Account)") }}</small>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

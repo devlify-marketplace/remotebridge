@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ _("User Profile & Account") }}{% endblock %}
+{% block content %}
+  <h1>{{ _("Account Settings & Profile") }}</h1>
+  <div class="subtitle">{{ _("Manage your personal operator profile, security credentials, and authentication options.") }}</div>
+
+  {% if new_codes %}
+  <div class="panel" style="border-color: var(--accent);">
+    <h2>{{ _("Recovery codes - save them now, they won't be shown again") }}</h2>
+    <p>{{ _("Each code works once, if you lose your phone. Keep them somewhere safe and separate from your password.") }}</p>
+    <ul class="mono">{% for c in new_codes %}<li>{{ c }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-top: 20px;">
+    <!-- Profile Info Card -->
+    <div class="panel">
+      <h2>{{ _("Profile Details") }}</h2>
+      <form method="post" action="{{ url_for('profile_update') }}">
+        {{ csrf_input() }}
+        <label for="username">{{ _("Username") }}</label>
+        <input type="text" id="username" value="{{ user.username }}" disabled style="opacity: 0.7;">
+
+        <label for="display_name" style="margin-top: 12px;">{{ _("Display Name") }}</label>
+        <input type="text" id="display_name" name="display_name" value="{{ user.display_name or '' }}" placeholder="e.g. Alice Smith">
+
+        <label for="email" style="margin-top: 12px;">{{ _("Email Address") }}</label>
+        <input type="email" id="email" name="email" value="{{ user.email or '' }}" placeholder="alice@example.com">
+
+        <div style="margin-top: 16px; font-size: 0.9em; color: var(--muted);">
+          <p><strong>{{ _("Role:") }}</strong> <span class="badge badge-neutral">{{ user.role|upper }}</span></p>
+          <p><strong>{{ _("Organization:") }}</strong> {{ org.name if org else 'Default Org' }}</p>
+          <p><strong>{{ _("Member Since:") }}</strong> {{ user.created_at[:10] if user.created_at else 'N/A' }}</p>
+          {% if user.last_login_at %}
+          <p><strong>{{ _("Last Login:") }}</strong> {{ user.last_login_at[:19].replace('T', ' ') }}</p>
+          {% endif %}
+        </div>
+
+        <button class="btn" type="submit" style="margin-top: 20px;">{{ _("Save Profile Changes") }}</button>
+      </form>
+    </div>
+
+    <!-- Password Change Card -->
+    <div class="panel">
+      <h2>{{ _("Change Password") }}</h2>
+      <form method="post" action="{{ url_for('account_password_change') }}">
+        {{ csrf_input() }}
+        <label for="current_password">{{ _("Current Password") }}</label>
+        <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+
+        <label for="new_password" style="margin-top: 12px;">{{ _("New Password") }}</label>
+        <input type="password" id="new_password" name="new_password" required minlength="6" autocomplete="new-password">
+
+        <label for="confirm_password" style="margin-top: 12px;">{{ _("Confirm New Password") }}</label>
+        <input type="password" id="confirm_password" name="confirm_password" required minlength="6" autocomplete="new-password">
+
+        <button class="btn btn-quiet" type="submit" style="margin-top: 20px;">{{ _("Update Password") }}</button>
+      </form>
+    </div>
+
+    <!-- 2FA Card -->
+    <div class="panel">
+      <h2>{{ _("Two-Factor Authentication (2FA)") }}</h2>
+      {% if user.totp_enabled %}
+        <p><span class="badge badge-neutral">{{ _("ENABLED") }}</span> {{ _("Recovery codes remaining: {count}", count=recovery_left) }}</p>
+        {% if required_2fa %}
+          <p>{{ _("This console requires 2FA, so it cannot be disabled.") }}</p>
+        {% else %}
+        <form method="post" action="{{ url_for('account_2fa_disable') }}" style="margin-top: 16px;">
+          {{ csrf_input() }}
+          <label for="password_2fa">{{ _("Password") }}</label>
+          <input type="password" id="password_2fa" name="password" autocomplete="current-password" required>
+          <label for="code_2fa" style="margin-top: 12px;">{{ _("Current 2FA Code") }}</label>
+          <input type="text" id="code_2fa" name="code" autocomplete="one-time-code" required>
+          <button class="btn btn-quiet" type="submit" style="margin-top: 18px;">{{ _("Disable 2FA") }}</button>
+        </form>
+        {% endif %}
+      {% elif setup %}
+        <p>{{ _("Scan or type this secret key into your authenticator app:") }}</p>
+        <p class="mono" style="font-size: 1.1em; background: var(--bg-card); padding: 8px; border-radius: 4px;">{{ setup.secret }}</p>
+        <p><a class="mono" href="{{ setup.uri }}">{{ _("Open in Authenticator App") }}</a></p>
+        <form method="post" action="{{ url_for('account_2fa_confirm') }}" style="margin-top: 16px;">
+          {{ csrf_input() }}
+          <label for="code">{{ _("Enter 6-Digit Code") }}</label>
+          <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+          <button class="btn" type="submit" style="margin-top: 18px;">{{ _("Enable 2FA") }}</button>
+        </form>
+      {% else %}
+        <p><span class="badge badge-neutral">{{ _("DISABLED") }}</span></p>
+        <p style="font-size: 0.9em; color: var(--muted);">{{ _("Enhance your account security by requiring a TOTP code during login.") }}</p>
+        <form method="post" action="{{ url_for('account_2fa_start') }}" style="margin-top: 16px;">
+          {{ csrf_input() }}
+          <button class="btn" type="submit">{{ _("Set Up Two-Factor Authentication") }}</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
