@@ -1,25 +1,55 @@
-/* Phase 9 admin console.
-   An ops-console feel for the people who have to answer "who connected
-   to what, and why did the tool let them" - dense, legible, quiet. IDs,
-   tokens and timestamps read in monospace since that's what they are;
-   everything else is a plain grotesque sans. One accent color, used
-   sparingly for the things that need a decision (primary actions,
-   active nav) rather than painted across the whole page. */
+/* RemoteBridge Admin Console Responsive & Dynamic Design System
+   Full desktop width, mobile responsiveness with navigation drawer,
+   and dynamic light/dark/contrast theme modes everywhere. */
 
-:root {
+:root, :root[data-theme="dark"], :root[data-theme="auto"] {
   --bg: #12151c;
   --panel: #1a1f29;
   --panel-border: #2a3040;
+  --sidebar-bg: #0e1117;
   --text: #e7e5e0;
   --text-dim: #8b93a3;
   --accent: #c98a3b;
   --accent-strong: #e0a355;
-  --danger: #e57f7f;   /* Phase 12: was #c85c5c (4.0:1 on panels) - now 6:1, meets WCAG AA */
+  --danger: #e57f7f;
   --danger-bg: #2a1c1c;
   --ok: #6ea88a;
   --ok-bg: #17241f;
+  --input-bg: #0e1117;
   --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --panel-border: #d0d7de;
+  --sidebar-bg: #eaeff5;
+  --text: #1f2328;
+  --text-dim: #57606a;
+  --accent: #0969da;
+  --accent-strong: #0550ae;
+  --danger: #cf222e;
+  --danger-bg: #ffebe9;
+  --ok: #1a7f37;
+  --ok-bg: #dafbe1;
+  --input-bg: #ffffff;
+}
+
+:root[data-theme="contrast"] {
+  --bg: #000000;
+  --panel: #0a0a0a;
+  --panel-border: #ffffff;
+  --sidebar-bg: #000000;
+  --text: #ffffff;
+  --text-dim: #e0e0e0;
+  --accent: #ffd54a;
+  --accent-strong: #ffe680;
+  --danger: #ff9e9e;
+  --danger-bg: #000000;
+  --ok: #8dffb5;
+  --ok-bg: #000000;
+  --input-bg: #000000;
 }
 
 * { box-sizing: border-box; }
@@ -31,21 +61,27 @@ body {
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.5;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 a { color: var(--accent-strong); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
-.layout { display: flex; min-height: 100vh; }
+.layout { display: flex; min-height: 100vh; width: 100%; }
+
+.mobile-header {
+  display: none;
+}
 
 .sidebar {
-  width: 216px;
+  width: 240px;
   flex-shrink: 0;
-  background: #0e1117;
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--panel-border);
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
+  transition: all 0.2s ease;
 }
 
 .brand {
@@ -54,18 +90,20 @@ a:hover { text-decoration: underline; }
   margin-bottom: 24px;
   line-height: 1.35;
 }
-.brand strong { color: var(--text); display: block; font-size: 15px; }
+.brand strong { color: var(--text); display: block; font-size: 16px; font-weight: 700; }
 
 .nav a {
   display: block;
   color: var(--text-dim);
-  padding: 8px 10px;
-  border-radius: 5px;
-  margin-bottom: 2px;
-  font-size: 13.5px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  margin-bottom: 3px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.nav a:hover { color: var(--text); text-decoration: none; background: #1c212c; }
-.nav a.active { color: var(--accent-strong); background: #221c14; }
+.nav a:hover { color: var(--text); text-decoration: none; background: var(--panel); }
+.nav a.active { color: var(--accent-strong); background: var(--panel); border-left: 3px solid var(--accent); }
 
 .sidebar-footer {
   margin-top: auto;
@@ -76,75 +114,94 @@ a:hover { text-decoration: underline; }
 }
 .sidebar-footer form { margin-top: 6px; }
 
-.main { flex: 1; padding: 28px 36px; max-width: 1100px; }
+/* FULL DESKTOP WIDTH LAYOUT */
+.main {
+  flex: 1;
+  padding: 28px 36px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
-h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
-h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; color: var(--text); }
-.subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+h1 { font-size: 22px; margin: 0 0 6px; font-weight: 700; color: var(--text); }
+h2 { font-size: 16px; margin: 0 0 12px; font-weight: 600; color: var(--text); }
+.subtitle { color: var(--text-dim); font-size: 13.5px; margin-bottom: 24px; }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 18px 20px;
+  border-radius: 8px;
+  padding: 20px;
   margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
 }
 
-.stat-grid { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-grid { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; width: 100%; }
 .stat-card {
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 6px;
-  padding: 14px 18px;
-  min-width: 140px;
+  border-radius: 8px;
+  padding: 16px 20px;
+  min-width: 160px;
   flex: 1;
 }
-.stat-card .value { font-size: 26px; font-weight: 600; }
-.stat-card .label { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: var(--text); }
+.stat-card .label { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
 
-.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
-.bar-row .name { width: 160px; font-family: var(--font-mono); color: var(--text-dim); flex-shrink: 0; }
-.bar-track { flex: 1; background: #0e1117; border-radius: 3px; height: 8px; overflow: hidden; }
-.bar-fill { background: var(--accent); height: 100%; }
-.bar-row .count { width: 28px; text-align: right; color: var(--text-dim); }
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+.bar-row .name { width: 180px; font-family: var(--font-mono); color: var(--text-dim); flex-shrink: 0; }
+.bar-track { flex: 1; background: var(--bg); border-radius: 4px; height: 10px; overflow: hidden; }
+.bar-fill { background: var(--accent); height: 100%; border-radius: 4px; }
+.bar-row .count { width: 36px; text-align: right; color: var(--text-dim); font-weight: 600; }
 
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th {
   text-align: left;
   color: var(--text-dim);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 12px;
-  text-transform: none;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--panel-border);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--panel-border);
 }
-td { padding: 8px 10px; border-bottom: 1px solid #1f2530; vertical-align: top; }
+td { padding: 10px 12px; border-bottom: 1px solid var(--panel-border); vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 .mono { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-dim); }
 
 .badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 3px 9px;
+  border-radius: 12px;
   font-size: 11.5px;
-  font-weight: 500;
+  font-weight: 600;
+  border: 1px solid currentColor;
 }
 .badge-ok { background: var(--ok-bg); color: var(--ok); }
 .badge-danger { background: var(--danger-bg); color: var(--danger); }
-.badge-neutral { background: #232a38; color: var(--text-dim); }
+.badge-neutral { background: var(--panel-border); color: var(--text-dim); }
 
 form.inline { display: inline; }
 
 .btn {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent);
-  color: #17120b;
+  color: #ffffff;
   border: none;
-  border-radius: 5px;
-  padding: 7px 14px;
-  font-size: 13px;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 .btn:hover { background: var(--accent-strong); text-decoration: none; }
 .btn-quiet {
@@ -152,31 +209,38 @@ form.inline { display: inline; }
   color: var(--text-dim);
   border: 1px solid var(--panel-border);
 }
-.btn-quiet:hover { color: var(--text); border-color: var(--text-dim); }
-.btn-danger { background: var(--danger); color: #2a1414; }
-.btn-danger:hover { background: #f09a9a; }
+.btn-quiet:hover { color: var(--text); border-color: var(--text-dim); background: var(--panel-border); }
+.btn-danger { background: var(--danger); color: #ffffff; }
+.btn-danger:hover { opacity: 0.9; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.active-theme {
+  border-color: var(--accent) !important;
+  color: var(--accent-strong) !important;
+  font-weight: 700 !important;
+}
 
 input[type=text], input[type=password], input[type=number], select, textarea {
-  background: #0e1117;
+  background: var(--input-bg);
   border: 1px solid var(--panel-border);
   color: var(--text);
-  border-radius: 5px;
-  padding: 7px 10px;
-  font-size: 13.5px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
   font-family: inherit;
   width: 100%;
 }
-textarea { font-family: var(--font-mono); font-size: 12.5px; min-height: 70px; }
+textarea { font-family: var(--font-mono); font-size: 13px; min-height: 80px; }
 
-label { display: block; font-size: 12.5px; color: var(--text-dim); margin: 14px 0 5px; }
-label.checkbox { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text); margin: 10px 0; }
+label { display: block; font-size: 13px; color: var(--text-dim); margin: 14px 0 6px; font-weight: 500; }
+label.checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); margin: 12px 0; }
 label.checkbox input { width: auto; }
 
 .field-row { display: flex; gap: 20px; }
 .field-row > div { flex: 1; }
 
-.filter-bar { display: flex; gap: 10px; align-items: end; margin-bottom: 18px; }
-.filter-bar > div { flex: 1; max-width: 200px; }
+.filter-bar { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-bar > div { flex: 1; min-width: 160px; }
 .filter-bar label { margin-top: 0; }
 
 .login-wrap {
@@ -184,27 +248,25 @@ label.checkbox input { width: auto; }
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
+  background: var(--bg);
 }
-.login-box { width: 320px; }
+.login-box { width: 100%; max-width: 380px; }
 .login-box h1 { text-align: center; margin-bottom: 4px; }
 .login-box .subtitle { text-align: center; }
 
-.flash { padding: 10px 14px; border-radius: 5px; margin-bottom: 16px; font-size: 13px; }
-.flash-ok { background: var(--ok-bg); color: var(--ok); }
-.flash-error { background: var(--danger-bg); color: var(--danger); }
+.flash { padding: 12px 16px; border-radius: 6px; margin-bottom: 18px; font-size: 13.5px; font-weight: 500; }
+.flash-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+.flash-error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
 
-.empty { color: var(--text-dim); font-size: 13px; padding: 6px 0; }
+.empty { color: var(--text-dim); font-size: 13.5px; padding: 12px 0; text-align: center; }
 
-.section-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.section-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
 
-
-/* ---- Phase 12: accessibility ------------------------------------------ */
-
-/* Keyboard users need to see where focus is. Mouse clicks don't trigger
-   :focus-visible, so this doesn't add rings on every click. */
+/* ACCESSIBILITY & FOCUS */
 :focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 2px; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
-.main:focus { outline: none; }   /* only focused programmatically by the skip link */
+.main:focus { outline: none; }
 
 .visually-hidden {
   position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
@@ -213,63 +275,69 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 
 .skip-link {
   position: absolute; left: 8px; top: -60px; z-index: 100;
-  background: var(--accent-strong); color: #17120b; padding: 8px 14px; border-radius: 5px; font-weight: 600;
+  background: var(--accent-strong); color: #ffffff; padding: 8px 14px; border-radius: 6px; font-weight: 600;
 }
 .skip-link:focus { top: 8px; text-decoration: none; }
 
 .count {
   display: inline-block; min-width: 1.5em; padding: 0 6px; margin-left: 6px; text-align: center;
-  border-radius: 10px; background: var(--accent); color: #17120b; font-size: 11.5px; font-weight: 600;
+  border-radius: 10px; background: var(--accent); color: #ffffff; font-size: 11.5px; font-weight: 700;
 }
 
 .controls { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--panel-border); font-size: 12.5px; }
-.controls a { display: inline-block; margin-top: 8px; text-decoration: underline; }
-.lang-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: end; }
-.lang-form label { flex-basis: 100%; margin: 0 0 2px; }
+.controls a { display: inline-block; text-decoration: none; }
+.lang-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+.lang-form label { flex-basis: 100%; margin: 0 0 4px; }
 .lang-form select { flex: 1; min-width: 0; width: auto; }
 
-/* Links inside running text must not rely on colour alone. */
-.panel a:not(.btn), .subtitle a, .flash a { text-decoration: underline; }
+/* FULL MOBILE RESPONSIVENESS */
+@media (max-width: 768px) {
+  .mobile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .mobile-brand { font-size: 15px; color: var(--text-dim); }
+  .mobile-brand strong { color: var(--text); }
+  .mobile-nav-toggle {
+    background: var(--panel-border);
+    color: var(--text);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-/* Status badges carry their meaning in text already; make the border visible too
-   so they aren't colour-only in forced-colors / greyscale. */
-.badge { border: 1px solid currentColor; }
+  .layout { flex-direction: column; }
+
+  .sidebar {
+    width: 100%;
+    display: none;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    padding: 16px;
+  }
+  .sidebar.active { display: flex; }
+
+  .main { padding: 18px 16px; }
+
+  .stat-grid { flex-direction: column; }
+  .field-row { flex-direction: column; gap: 0; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar > div { max-width: 100%; width: 100%; }
+
+  .section-actions { flex-direction: column; align-items: stretch; gap: 12px; }
+  .section-actions .btn { width: 100%; text-align: center; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
-
-/* High contrast: chosen explicitly from the footer link (data-theme="contrast"),
-   or automatically when the OS asks for more contrast and the person hasn't
-   chosen "standard" (data-theme="auto"). Both give >= 7:1 (WCAG AAA) text. */
-:root[data-theme="contrast"] {
-  --bg: #000000; --panel: #0a0a0a; --panel-border: #ffffff;
-  --text: #ffffff; --text-dim: #e0e0e0;
-  --accent: #ffd54a; --accent-strong: #ffe680;
-  --danger: #ff9e9e; --danger-bg: #000000;
-  --ok: #8dffb5; --ok-bg: #000000;
-}
-@media (prefers-contrast: more) {
-  :root[data-theme="auto"] {
-    --bg: #000000; --panel: #0a0a0a; --panel-border: #ffffff;
-    --text: #ffffff; --text-dim: #e0e0e0;
-    --accent: #ffd54a; --accent-strong: #ffe680;
-    --danger: #ff9e9e; --danger-bg: #000000;
-    --ok: #8dffb5; --ok-bg: #000000;
-  }
-}
-:root[data-theme="contrast"] .sidebar, :root[data-theme="contrast"] .bar-track { background: #000; }
-:root[data-theme="contrast"] .nav a.active { background: #000; border: 1px solid var(--accent-strong); }
-:root[data-theme="contrast"] .nav a:hover { background: #1a1a1a; }
-:root[data-theme="contrast"] .panel, :root[data-theme="contrast"] .stat-card,
-:root[data-theme="contrast"] input, :root[data-theme="contrast"] select,
-:root[data-theme="contrast"] textarea { border: 1px solid #fff; }
-:root[data-theme="contrast"] .flash { border: 2px solid currentColor; }
-:root[data-theme="contrast"] .btn { color: #000; }
-:root[data-theme="contrast"] .btn-quiet { color: var(--text); border-color: #fff; }
-
-/* Windows "forced colors" (High Contrast mode): let the OS palette win. */
-@media (forced-colors: active) {
-  .btn, .badge, .count, .skip-link { border: 1px solid ButtonText; }
-  .bar-fill { background: Highlight; }
 }

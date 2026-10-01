@@ -1,5 +1,3 @@
-{# Language + contrast controls. Plain GET forms/links, no scripting, so they work with a
-   screen reader, a keyboard, and no JavaScript. Nothing auto-submits on change. #}
 <div class="controls">
   <form action="{{ url_for('set_language') }}" method="get" class="lang-form">
     <label for="lang-select">{{ _("Language") }}</label>
@@ -11,9 +9,10 @@
     <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
     <button class="btn btn-quiet" type="submit">{{ _("Apply") }}</button>
   </form>
-  {% if theme == 'contrast' %}
-    <a href="{{ url_for('set_theme', theme='auto', next=request.full_path.rstrip('?')) }}">{{ _("Use standard contrast") }}</a>
-  {% else %}
-    <a href="{{ url_for('set_theme', theme='contrast', next=request.full_path.rstrip('?')) }}">{{ _("Use high contrast") }}</a>
-  {% endif %}
+  
+  <div class="theme-toggle-bar" style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'dark' or theme == 'auto' }}" href="{{ url_for('set_theme', theme='dark', next=request.full_path.rstrip('?')) }}">🌙 {{ _("Dark") }}</a>
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'light' }}" href="{{ url_for('set_theme', theme='light', next=request.full_path.rstrip('?')) }}">☀️ {{ _("Light") }}</a>
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'contrast' }}" href="{{ url_for('set_theme', theme='contrast', next=request.full_path.rstrip('?')) }}">⚡ {{ _("Contrast") }}</a>
+  </div>
 </div>

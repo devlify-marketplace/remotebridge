@@ -142,7 +142,8 @@ def inject_user():
 
 # --- Phase 12: language, theme, CSRF -------------------------------------------
 
-THEMES = ("auto", "contrast")     # auto = the default look, upgraded by prefers-contrast
+THEMES = ("auto", "dark", "light", "contrast")     # auto/dark/light/contrast theme options
+
 
 
 def current_language() -> str:

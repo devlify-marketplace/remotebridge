@@ -8,8 +8,17 @@
 </head>
 <body>
   <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
+  
+  <!-- Mobile Header Bar -->
+  <div class="mobile-header">
+    <div class="mobile-brand"><strong>{{ branding.display_name }}</strong> {{ _("Admin Console") }}</div>
+    <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="{{ _('Toggle Navigation') }}">
+      ☰ {{ _("Menu") }}
+    </button>
+  </div>
+
   <div class="layout">
-    <div class="sidebar">
+    <div class="sidebar" id="sidebarNav">
       <div class="brand"><strong>{{ branding.display_name }}</strong>{{ _("Admin Console") }}</div>
       <nav class="nav" aria-label="{{ _('Main') }}">
         {% macro nav_link(endpoint, label, active_endpoints) %}
@@ -46,5 +55,14 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+
+  <script>
+    function toggleMobileNav() {
+      var sb = document.getElementById('sidebarNav');
+      if (sb) {
+        sb.classList.toggle('active');
+      }
+    }
+  </script>
 </body>
 </html>
