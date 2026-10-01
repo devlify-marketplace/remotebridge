@@ -526,6 +526,18 @@ def sessions():
                                      "days": days or ""})
 
 
+@app.route("/sessions/recordings/<path:filename>")
+@login_required
+def serve_session_recording(filename):
+    """Serve session recordings for playback in the admin console."""
+    from flask import send_from_directory
+    recordings_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "recordings")
+    if not os.path.exists(recordings_dir):
+        os.makedirs(recordings_dir, exist_ok=True)
+    return send_from_directory(recordings_dir, filename)
+
+
+
 # --- Support / feedback inbox (Phase 12) ---------------------------------------
 
 @app.route("/feedback")

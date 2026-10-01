@@ -39,7 +39,16 @@
     {% if events %}
     <table>
       <caption class="visually-hidden">{{ _("Session history") }}</caption>
-      <tr><th scope="col">{{ _("When") }}</th><th scope="col">{{ _("Device") }}</th><th scope="col">{{ _("Viewer") }}</th><th scope="col">{{ _("Address") }}</th><th scope="col">{{ _("Event") }}</th><th scope="col">{{ _("Decision / reason") }}</th><th scope="col">{{ _("Duration") }}</th></tr>
+      <tr>
+        <th scope="col">{{ _("When") }}</th>
+        <th scope="col">{{ _("Device") }}</th>
+        <th scope="col">{{ _("Viewer") }}</th>
+        <th scope="col">{{ _("Address") }}</th>
+        <th scope="col">{{ _("Event") }}</th>
+        <th scope="col">{{ _("Decision / reason") }}</th>
+        <th scope="col">{{ _("Duration") }}</th>
+        <th scope="col">{{ _("Recording") }}</th>
+      </tr>
       {% for e in events %}
       <tr>
         <td class="mono">{{ e.timestamp[:19].replace('T', ' ') }}</td>
@@ -52,6 +61,15 @@
           {% if e.reason %}<div class="subtitle" style="margin:2px 0 0;">{{ e.reason }}</div>{% endif %}
         </td>
         <td class="mono">{{ (e.duration_seconds ~ 's') if e.duration_seconds is not none else '—' }}</td>
+        <td>
+          {% if e.event == 'end' %}
+            <button class="btn btn-sm" onclick="openVideoModal('{{ e.device_id }}_{{ e.timestamp[:10] }}.mp4')">
+              ▶ {{ _("Play Recording") }}
+            </button>
+          {% else %}
+            —
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </table>
@@ -59,4 +77,35 @@
       <div class="empty">{{ _("No session events match this filter.") }}</div>
     {% endif %}
   </div>
+
+  <!-- Video Playback Modal -->
+  <div id="videoModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
+    <div style="background:var(--bg-panel, #1e1e2e); padding:20px; border-radius:8px; max-width:800px; width:90%;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="margin:0;">{{ _("Session Video Playback") }}</h3>
+        <button class="btn btn-sm" onclick="closeVideoModal()">✕ {{ _("Close") }}</button>
+      </div>
+      <video id="sessionVideo" controls style="width:100%; max-height:450px; background:#000;">
+        <source src="" type="video/mp4">
+        {{ _("Your browser does not support video playback.") }}
+      </video>
+    </div>
+  </div>
+
+  <script>
+    function openVideoModal(filename) {
+      var modal = document.getElementById('videoModal');
+      var video = document.getElementById('sessionVideo');
+      video.src = '/sessions/recordings/' + filename;
+      modal.style.display = 'flex';
+      video.play().catch(function(e){ console.log("Auto-play prevented:", e); });
+    }
+    function closeVideoModal() {
+      var modal = document.getElementById('videoModal');
+      var video = document.getElementById('sessionVideo');
+      video.pause();
+      video.src = '';
+      modal.style.display = 'none';
+    }
+  </script>
 {% endblock %}
