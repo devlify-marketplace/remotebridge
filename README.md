@@ -75,11 +75,20 @@ pip install -r desktop/requirements.txt
 pip install -r admin/requirements.txt
 ```
 
-### 2. Graphical Desktop App
+### 2. Master All-in-One System Launcher
+Launch all RemoteBridge modules simultaneously (Relay, Admin Console, Host, and GUI) with a single command:
+```bash
+python3 start_all.py
+# Or run in headless mode (backend modules only):
+python3 start_all.py --headless
+```
+
+### 3. Graphical Desktop App
 To launch the interactive GUI on Linux, macOS, or Windows:
 ```bash
 python3 desktop/gui.py
 ```
+
 
 ### 3. Command-Line Host & Viewer
 
