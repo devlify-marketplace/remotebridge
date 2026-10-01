@@ -578,6 +578,35 @@ def _verify_password(password: str, salt_b64: str, hash_b64: str) -> bool:
 
 # --- Admin users (console operators, not remote-session viewers) ---------
 
+def create_organization(conn, name: str, slug: str = None) -> int:
+    now = _now_iso()
+    s = slug or name.lower().replace(" ", "-")
+    cur = conn.execute(
+        """INSERT INTO organizations (name, slug, status, created_at, updated_at)
+           VALUES (?, ?, 'active', ?, ?)""",
+        (name.strip(), s.strip(), now, now)
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_organization(conn, organization_id: int):
+    row = conn.execute("SELECT * FROM organizations WHERE id = ?", (organization_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_organization_members(conn, organization_id: int):
+    rows = conn.execute(
+        """SELECT om.*, u.username, r.name as role_name
+           FROM organization_members om
+           JOIN users u ON om.user_id = u.id
+           JOIN roles r ON om.role_id = r.id
+           WHERE om.organization_id = ? AND om.status = 'active'""",
+        (organization_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def create_user(conn, username: str, password: str, email: str = None,
                 display_name: str = None, role: str = "user", organization_id: int = 1) -> int:
     if role not in ("admin", "auditor", "user"):
