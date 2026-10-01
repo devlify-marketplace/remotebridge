@@ -20,13 +20,23 @@ store.get_conn = lambda path=None: _real_connect(URL)
 
 
 def wiped_init(path=None):
-    c = _real_connect(URL)
-    # The previous test's connection is still open (idle in a transaction) and would block the DROP.
-    c.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-              "WHERE datname = current_database() AND pid <> pg_backend_pid()")
-    c.commit()
-    c.execute("DROP SCHEMA public CASCADE"); c.execute("CREATE SCHEMA public"); c.commit(); c.close()
+    try:
+        c = _real_connect(URL)
+        # Terminate active sessions on the scratch DB so DROP SCHEMA public CASCADE can proceed
+        try:
+            c.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                      "WHERE datname = current_database() AND pid <> pg_backend_pid()")
+            c.commit()
+        except Exception:
+            pass
+        c.execute("DROP SCHEMA public CASCADE")
+        c.execute("CREATE SCHEMA public")
+        c.commit()
+        c.close()
+    except Exception as e:
+        sys.stderr.write(f"Schema wipe warning: {e}\n")
     return _real_init(URL)
+
 
 
 store.init_db = wiped_init

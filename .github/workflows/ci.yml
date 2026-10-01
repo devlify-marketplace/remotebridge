@@ -54,13 +54,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          if [ -f desktop/requirements.txt ]; then pip install -r desktop/requirements.txt; fi
           if [ -f admin/requirements.txt ]; then pip install -r admin/requirements.txt; fi
 
       - name: Run Admin Postgres integration tests
         env:
-          PG_TEST_URL: postgresql://postgres:postgrespassword@localhost:5432/remotebridge_test
+          PG_TEST_URL: postgresql://postgres:postgrespassword@127.0.0.1:5432/remotebridge_test
         run: |
           python3 tests/run_admin_on_postgres.py
+
 
   flutter-analysis:
     runs-on: ubuntu-latest

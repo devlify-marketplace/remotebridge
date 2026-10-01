@@ -92,8 +92,17 @@ a:hover { text-decoration: underline; }
 }
 .brand strong { color: var(--text); display: block; font-size: 16px; font-weight: 700; }
 
+.nav-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+  stroke: currentColor;
+  flex-shrink: 0;
+}
+
 .nav a {
-  display: block;
+  display: flex;
+  align-items: center;
   color: var(--text-dim);
   padding: 9px 12px;
   border-radius: 6px;
@@ -104,6 +113,8 @@ a:hover { text-decoration: underline; }
 }
 .nav a:hover { color: var(--text); text-decoration: none; background: var(--panel); }
 .nav a.active { color: var(--accent-strong); background: var(--panel); border-left: 3px solid var(--accent); }
+.nav a.active .nav-icon { stroke: var(--accent-strong); }
+
 
 .sidebar-footer {
   margin-top: auto;
