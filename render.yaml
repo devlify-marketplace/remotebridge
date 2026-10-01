@@ -7,7 +7,8 @@
 # HTTP(S)/WebSocket publicly - see docs/DEPLOY_RENDER_NEON.md for where to run it.
 services:
   - type: web
-    name: remotebridge-admin
+    name: remotebridge
+
     runtime: python
     plan: free
     region: oregon            # pick the region closest to your Neon project (Neon: Project > Settings)
