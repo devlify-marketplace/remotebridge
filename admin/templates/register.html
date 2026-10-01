@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ _("Sign in") }} · {{ _("Admin Console") }}</title>
+  <title>{{ _("Create account") }} · {{ _("Admin Console") }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -11,7 +11,7 @@
   <main class="login-wrap" id="main" tabindex="-1">
     <div class="login-box">
       <h1>{{ branding.display_name }}</h1>
-      <div class="subtitle">{{ _("Admin console") }}</div>
+      <div class="subtitle">{{ _("Create account") }}</div>
       <div class="panel">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% for category, message in messages %}
@@ -23,14 +23,15 @@
           <label for="username">{{ _("Username") }}</label>
           <input type="text" id="username" name="username" autocomplete="username" autofocus required>
           <label for="password">{{ _("Password") }}</label>
-          <input type="password" id="password" name="password" autocomplete="current-password" required>
-          <button class="btn" type="submit" style="width:100%;margin-top:18px;">{{ _("Sign in") }}</button>
+          <input type="password" id="password" name="password" autocomplete="new-password" required minlength="6">
+          <label for="confirm_password">{{ _("Confirm password") }}</label>
+          <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required minlength="6">
+          <button class="btn" type="submit" style="width:100%;margin-top:18px;">{{ _("Create account") }}</button>
         </form>
         <div style="text-align:center;margin-top:14px;">
-          <a href="{{ url_for('register') }}">{{ _("Don't have an account? Register") }}</a>
+          <a href="{{ url_for('login') }}">{{ _("Back to sign in") }}</a>
         </div>
       </div>
-
       {% include "_controls.html" %}
     </div>
   </main>

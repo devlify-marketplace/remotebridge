@@ -330,6 +330,37 @@ def login_2fa():
     return response
 
 
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Public user registration route."""
+    if request.method != "POST":
+        return render_template("register.html")
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    confirm = request.form.get("confirm_password", "")
+    if not username or not password:
+        flash(tr("Username and password are required."), "error")
+        return render_template("register.html")
+    if password != confirm:
+        flash(tr("Passwords do not match."), "error")
+        return render_template("register.html")
+    if len(password) < 6:
+        flash(tr("Password must be at least 6 characters."), "error")
+        return render_template("register.html")
+    conn = get_db()
+    try:
+        store.create_admin_user(conn, username, password, role="admin")
+        flash(tr("Account created successfully. Please sign in."), "ok")
+        return redirect(url_for("login"))
+    except store.DuplicateUserError:
+        flash(tr("That username is already taken."), "error")
+        return render_template("register.html")
+    except Exception as e:
+        flash(str(e), "error")
+        return render_template("register.html")
+
+
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
@@ -584,7 +615,8 @@ def feedback_status(feedback_id):
 # --- Account security: the signed-in operator's own two-factor setup --------------
 
 _ENROLL_ALLOWED = {"account_security", "account_2fa_start", "account_2fa_confirm", "logout",
-                   "set_language", "set_theme", "static", "healthz", "login"}
+                   "set_language", "set_theme", "static", "healthz", "login", "register"}
+
 
 
 @app.before_request
