@@ -9,7 +9,7 @@
   </div>
   <div>
     <a href="{{ url_for('marketplace_web.new_provider_service') }}" class="btn">+ {{ _("Create New Service") }}</a>
-    <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn btn-quiet">⚙️ {{ _("Edit Profile") }}</a>
+    <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn btn-quiet">{{ _("Edit Profile") }}</a>
   </div>
 </div>
 
@@ -28,7 +28,7 @@
     <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Active Jobs") }}</div>
   </div>
   <div class="panel" style="text-align: center; padding: 20px;">
-    <div style="font-size: 28px; font-weight: 800; color: var(--text);">★ {{ provider.average_rating }}</div>
+    <div style="font-size: 28px; font-weight: 800; color: var(--text);">Rating: {{ provider.average_rating }}</div>
     <div style="font-size: 13px; color: var(--text-dim); margin-top: 4px;">{{ _("Rating ({0} reviews)", provider.review_count) }}</div>
   </div>
 </div>
@@ -36,7 +36,7 @@
 <!-- Pending Requests Table -->
 {% if pending_requests %}
 <div class="panel" style="margin-bottom: 24px; border-color: var(--accent);">
-  <h2 style="font-size: 16px; margin-bottom: 12px; color: var(--accent-strong);">⚡ {{ _("Pending Service Requests") }}</h2>
+  <h2 style="font-size: 16px; margin-bottom: 12px; color: var(--accent-strong);">{{ _("Pending Service Requests") }}</h2>
   <div class="table-wrap">
     <table>
       <thead>
@@ -59,10 +59,10 @@
           <td class="muted">{{ req.created_at[:10] }}</td>
           <td>
             <form action="{{ url_for('marketplace_web.provider_accept_order', id=req.id) }}" method="post" style="display: inline;">
-              <button type="submit" class="btn btn-sm">✓ {{ _("Accept") }}</button>
+              <button type="submit" class="btn btn-sm">{{ _("Accept") }}</button>
             </form>
             <form action="{{ url_for('marketplace_web.provider_reject_order', id=req.id) }}" method="post" style="display: inline;">
-              <button type="submit" class="btn btn-danger btn-sm">✕ {{ _("Reject") }}</button>
+              <button type="submit" class="btn btn-danger btn-sm">{{ _("Reject") }}</button>
             </form>
           </td>
         </tr>
@@ -76,7 +76,7 @@
 <!-- Active Jobs & Services Grid -->
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
   <div class="panel">
-    <h2 style="font-size: 16px; margin-bottom: 12px;">🛠️ {{ _("Active Service Jobs") }}</h2>
+    <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Active Service Jobs") }}</h2>
     {% if not active_jobs %}
     <div class="empty">{{ _("No active jobs right now.") }}</div>
     {% else %}
@@ -96,7 +96,7 @@
 
   <div class="panel">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-      <h2 style="font-size: 16px; margin: 0;">📋 {{ _("My Service Listings") }}</h2>
+      <h2 style="font-size: 16px; margin: 0;">{{ _("My Service Listings") }}</h2>
       <a href="{{ url_for('marketplace_web.provider_services') }}" style="font-size: 13px;">{{ _("Manage All") }} &rarr;</a>
     </div>
     {% if not services %}

@@ -96,10 +96,10 @@
             {{ srv.provider_name }}
           </a>
           {% if srv.verification_status == 'verified' %}
-          <span style="color: var(--ok);">✓</span>
+          <span class="badge badge-ok" style="font-size:10px; padding:1px 4px;">VERIFIED</span>
           {% endif %}
         </div>
-        <div style="font-size: 12px; color: var(--text-dim);">★ {{ srv.provider_rating }}</div>
+        <div style="font-size: 12px; color: var(--text-dim);">Rating: {{ srv.provider_rating }}</div>
       </div>
       
       <div style="display: flex; justify-content: space-between; align-items: center;">

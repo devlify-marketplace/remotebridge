@@ -10,7 +10,9 @@
 </div>
 
 <div class="panel" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 28px;">
-  <div style="font-size: 36px; margin-bottom: 12px;">✓</div>
+  <div style="margin-bottom: 12px; color: var(--ok);">
+    <svg viewBox="0 0 24 24" width="36" height="36" stroke="currentColor" stroke-width="2" fill="none"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  </div>
   <h2 style="font-size: 18px; margin-bottom: 12px;">{{ _("Verification Status:") }} <span class="badge {% if provider.verification_status == 'verified' %}badge-ok{% else %}badge-neutral{% endif %}">{{ provider.verification_status.upper() }}</span></h2>
   
   <p style="font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.6;">
@@ -19,7 +21,7 @@
 
   {% if provider.verification_status == 'unverified' %}
   <form action="{{ url_for('marketplace_web.provider_verification') }}" method="post">
-    <button type="submit" class="btn">🚀 {{ _("Submit Request for Admin Review") }}</button>
+    <button type="submit" class="btn">{{ _("Submit Request for Admin Review") }}</button>
   </form>
   {% elif provider.verification_status == 'pending' %}
   <div style="padding: 12px; background: var(--bg); border: 1px solid var(--panel-border); border-radius: 6px; font-size: 13.5px; color: var(--text-dim);">
@@ -27,7 +29,7 @@
   </div>
   {% else %}
   <div style="padding: 12px; background: rgba(9,105,218,0.1); border: 1px solid var(--ok); border-radius: 6px; font-size: 14px; color: var(--ok); font-weight: 700;">
-    ✓ {{ _("Your provider account is fully verified!") }}
+    {{ _("Your provider account is fully verified!") }}
   </div>
   {% endif %}
 </div>

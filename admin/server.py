@@ -448,15 +448,19 @@ def dashboard():
 # --- Devices -----------------------------------------------------------
 
 @app.route("/devices")
-@login_required
+@require_permission("device.read")
 def devices():
     conn = get_db()
-    return render_template("devices.html", devices=store.list_devices(conn),
-                            groups=store.list_groups(conn))
+    devs = store.list_devices(conn)
+    org_users = store.get_organization_members(conn, session.get("organization_id", 1))
+    for d in devs:
+        d["shares"] = store.list_device_shares(conn, d["device_id"])
+    return render_template("devices.html", devices=devs,
+                            groups=store.list_groups(conn), org_users=org_users)
 
 
 @app.route("/devices/<device_id>/group", methods=["POST"])
-@admin_required
+@require_permission("device.update")
 def set_device_group(device_id):
     conn = get_db()
     group_id = int(request.form["group_id"])
@@ -466,7 +470,7 @@ def set_device_group(device_id):
 
 
 @app.route("/devices/<device_id>/revoke", methods=["POST"])
-@admin_required
+@require_permission("device.revoke")
 def revoke_device_ui(device_id):
     """Cut a lost/compromised device off from the relay without rotating the shared secret."""
     if not store.set_device_revoked(get_db(), device_id, True):
@@ -476,7 +480,7 @@ def revoke_device_ui(device_id):
 
 
 @app.route("/devices/<device_id>/restore", methods=["POST"])
-@admin_required
+@require_permission("device.revoke")
 def restore_device_ui(device_id):
     if not store.set_device_revoked(get_db(), device_id, False):
         abort(404)
@@ -485,7 +489,7 @@ def restore_device_ui(device_id):
 
 
 @app.route("/devices/<device_id>/rename", methods=["POST"])
-@admin_required
+@require_permission("device.update")
 def rename_device(device_id):
     conn = get_db()
     store.rename_device(conn, device_id, request.form.get("display_name", "").strip() or device_id)
@@ -493,7 +497,7 @@ def rename_device(device_id):
 
 
 @app.route("/devices/<device_id>/mac", methods=["POST"])
-@admin_required
+@require_permission("device.update")
 def set_device_mac(device_id):
     conn = get_db()
     store.set_device_mac_address(conn, device_id, request.form.get("mac_address", ""))
@@ -501,7 +505,7 @@ def set_device_mac(device_id):
 
 
 @app.route("/devices/<device_id>/wake", methods=["POST"])
-@admin_required
+@require_permission("device.wake")
 def wake_device_ui(device_id):
     """Phase 11: the Devices page's own Wake button, backed by the exact
     same logic as the REST API's ops_wake_device below - one
@@ -519,6 +523,33 @@ def wake_device_ui(device_id):
                      mac=device["mac_address"]), "ok")
         except (ValueError, OSError) as e:
             flash(tr("Could not send the wake packet: {error}", error=e), "error")
+    return redirect(url_for("devices"))
+
+
+@app.route("/devices/<device_id>/share", methods=["POST"])
+@require_permission("device.share")
+def share_device_ui(device_id):
+    conn = get_db()
+    target_username = request.form.get("username", "").strip()
+    permission_level = request.form.get("permission_level", "read")
+    target_user = store.get_user_by_username(conn, target_username)
+    if not target_user:
+        flash(tr("User '{username}' not found.", username=target_username), "error")
+        return redirect(url_for("devices"))
+    store.share_device(conn, device_id, target_user["id"], permission_level=permission_level, granted_by=session.get("user_id"))
+    store.record_audit_event(conn, action="DEVICE_SHARED", actor_user_id=session.get("user_id"), resource_type="device", resource_id=device_id, target_user_id=target_user["id"], metadata={"permission_level": permission_level})
+    flash(tr("Device '{device}' shared with {user}.", device=device_id, user=target_username), "ok")
+    return redirect(url_for("devices"))
+
+
+@app.route("/devices/<device_id>/unshare", methods=["POST"])
+@require_permission("device.share")
+def unshare_device_ui(device_id):
+    conn = get_db()
+    user_id = int(request.form.get("user_id", 0))
+    store.unshare_device(conn, device_id, user_id)
+    store.record_audit_event(conn, action="DEVICE_UNSHARED", actor_user_id=session.get("user_id"), resource_type="device", resource_id=device_id, target_user_id=user_id)
+    flash(tr("Device share removed."), "ok")
     return redirect(url_for("devices"))
 
 

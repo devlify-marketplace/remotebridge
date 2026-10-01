@@ -10,15 +10,15 @@
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
       <h1 style="font-size: 24px; margin: 0; font-weight: 800;">{{ provider.display_name }}</h1>
       {% if provider.verification_status == 'verified' %}
-      <span class="badge badge-ok" style="font-size: 13px;">✓ {{ _("VERIFIED PROVIDER") }}</span>
+      <span class="badge badge-ok" style="font-size: 13px;">{{ _("VERIFIED PROVIDER") }}</span>
       {% endif %}
     </div>
     <div style="font-size: 15px; color: var(--text-dim); margin-bottom: 10px;">{{ provider.headline or _("Remote Support Specialist") }}</div>
     <div style="font-size: 13px; color: var(--text-dim); display: flex; gap: 16px; flex-wrap: wrap;">
-      <span>📍 {{ provider.city or '' }} {{ provider.country or '' }}</span>
-      <span>★ {{ provider.average_rating }} ({{ provider.review_count }} {{ _("reviews") }})</span>
-      <span>💼 {{ provider.completed_jobs }} {{ _("jobs completed") }}</span>
-      <span>⚡ {{ provider.response_time }} {{ _("avg response") }}</span>
+      <span>{{ provider.city or '' }} {{ provider.country or '' }}</span>
+      <span>Rating: {{ provider.average_rating }} ({{ provider.review_count }} {{ _("reviews") }})</span>
+      <span>Jobs: {{ provider.completed_jobs }} {{ _("jobs completed") }}</span>
+      <span>Response: {{ provider.response_time }} {{ _("avg response") }}</span>
     </div>
   </div>
 </div>
@@ -55,7 +55,7 @@
             <h3 style="font-size: 15px; margin: 0 0 4px; font-weight: 700;">
               <a href="{{ url_for('marketplace_web.service_detail', slug=srv.slug) }}">{{ srv.title }}</a>
             </h3>
-            <div style="font-size: 12.5px; color: var(--text-dim);">⏱️ {{ srv.estimated_minutes }} mins • {{ srv.category_name }}</div>
+            <div style="font-size: 12.5px; color: var(--text-dim);">Est: {{ srv.estimated_minutes }} mins • {{ srv.category_name }}</div>
           </div>
           <div style="text-align: right;">
             <div style="font-size: 17px; font-weight: 800; color: var(--accent-strong); margin-bottom: 4px;">${{ srv.price }}</div>
@@ -69,7 +69,7 @@
 
     <!-- Client Reviews -->
     <div class="panel">
-      <h2 style="font-size: 16px; margin-bottom: 16px;">★ {{ _("Customer Reviews") }} ({{ reviews|length }})</h2>
+      <h2 style="font-size: 16px; margin-bottom: 16px;">{{ _("Customer Reviews") }} ({{ reviews|length }})</h2>
       {% if not reviews %}
       <div class="empty">{{ _("No reviews submitted for this provider yet.") }}</div>
       {% else %}
@@ -78,7 +78,7 @@
         <div style="background: var(--bg); border: 1px solid var(--panel-border); padding: 14px; border-radius: 8px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
             <div style="font-weight: 700; font-size: 13.5px;">{{ r.customer_username }}</div>
-            <div style="color: var(--accent-strong); font-size: 13px;">★ {{ r.rating }}/5</div>
+            <div style="color: var(--accent-strong); font-size: 13px;">Rating: {{ r.rating }}/5</div>
           </div>
           <div style="font-size: 13px; color: var(--text); line-height: 1.5;">{{ r.review }}</div>
           <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 6px;">{{ r.created_at[:10] }} • {{ r.order_title }}</div>
@@ -92,7 +92,7 @@
   <!-- Sidebar Availability & Metadata -->
   <div>
     <div class="panel">
-      <h3 style="font-size: 15px; margin-bottom: 12px; font-weight: 700;">📅 {{ _("Working Schedule") }}</h3>
+      <h3 style="font-size: 15px; margin-bottom: 12px; font-weight: 700;">{{ _("Working Schedule") }}</h3>
       {% if not availability %}
       <div style="font-size: 13px; color: var(--text-dim);">{{ _("Flexible / By Appointment") }}</div>
       {% else %}

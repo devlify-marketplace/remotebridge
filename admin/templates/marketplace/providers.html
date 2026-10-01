@@ -43,13 +43,13 @@
       <h3 style="font-size: 17px; margin: 0 0 4px; font-weight: 700;">
         <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}">{{ prov.display_name }}</a>
         {% if prov.verification_status == 'verified' %}
-        <span style="color: var(--ok);" title="{{ _('Verified Provider') }}">✓</span>
+        <span class="badge badge-ok" style="font-size:10px; padding:1px 4px;">VERIFIED</span>
         {% endif %}
       </h3>
       <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">{{ prov.headline or _("Remote Support Specialist") }}</div>
       
       <div style="font-size: 12.5px; color: var(--text-dim); margin-bottom: 14px;">
-        📍 {{ prov.city or '' }} {{ prov.country or '' }} • ★ {{ prov.average_rating }} ({{ prov.review_count }})
+        {{ prov.city or '' }} {{ prov.country or '' }} • Rating: {{ prov.average_rating }} ({{ prov.review_count }})
       </div>
 
       {% if prov.skills %}

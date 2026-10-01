@@ -1,83 +1,136 @@
 {% extends "base.html" %}
-{% block title %}{{ _("Devices") }}{% endblock %}
+{% block title %}{{ _("Device Management") }}{% endblock %}
 {% block content %}
-  <h1>{{ _("Devices") }}</h1>
-  <div class="subtitle">{{ _("Every host that has enrolled with this console via --admin-url.") }}</div>
+  <h1>{{ _("Device Management") }}</h1>
+  <div class="subtitle">{{ _("Every host enrolled with this console via --admin-url.") }}</div>
 
   <div class="panel">
     {% if devices %}
-    <table>
+    <table class="table" style="width:100%;">
       <caption class="visually-hidden">{{ _("Enrolled devices") }}</caption>
-      <tr><th scope="col">{{ _("Device ID") }}</th><th scope="col">{{ _("Display name") }}</th><th scope="col">{{ _("Group") }}</th><th scope="col">{{ _("Version") }}</th><th scope="col">{{ _("MAC address") }}</th><th scope="col">{{ _("Last seen") }}</th><th scope="col">{{ _("Enrolled") }}</th></tr>
-      {% for d in devices %}
-      <tr>
-        <td class="mono">{{ d.device_id }}
-          {% if d.revoked_at %}<div><strong>{{ _("Relay access revoked") }}</strong></div>{% endif %}
-          {% if current_user.role == 'admin' %}
-          {% if d.revoked_at %}
-          <form action="{{ url_for('restore_device_ui', device_id=d.device_id) }}" method="post" class="inline">
-  {{ csrf_input() }}
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Restore relay access for {device}', device=d.device_id) }}">{{ _("Restore") }}</button>
-          </form>
-          {% else %}
-          <form action="{{ url_for('revoke_device_ui', device_id=d.device_id) }}" method="post" class="inline"
-                onsubmit="return confirm({{ _('Revoke relay access for {device}? It will be disconnected and unable to register until restored.', device=d.device_id)|tojson }});">
-  {{ csrf_input() }}
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Revoke relay access for {device}', device=d.device_id) }}">{{ _("Revoke") }}</button>
-          </form>
-          {% endif %}
-          {% endif %}
-        </td>
-        <td>
-          {% if current_user.role == 'admin' %}
-          <form action="{{ url_for('rename_device', device_id=d.device_id) }}" method="post" class="inline">
-  {{ csrf_input() }}
-            <input type="text" name="display_name" value="{{ d.display_name }}" style="width:160px;display:inline-block;"
-                   aria-label="{{ _('Display name for {device}', device=d.device_id) }}">
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save display name for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
-          </form>
-          {% else %}
-            {{ d.display_name }}
-          {% endif %}
-        </td>
-        <td>
-          {% if current_user.role == 'admin' %}
-          <form action="{{ url_for('set_device_group', device_id=d.device_id) }}" method="post" class="inline">
-  {{ csrf_input() }}
-            <select name="group_id" style="width:auto;display:inline-block;" aria-label="{{ _('Group for {device}', device=d.device_id) }}">
-              {% for g in groups %}
-                <option value="{{ g.id }}" {{ 'selected' if g.id == d.group_id }}>{{ g.name }}</option>
-              {% endfor %}
-            </select>
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save group for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
-          </form>
-          {% else %}
-            {{ d.group_name }}
-          {% endif %}
-        </td>
-        <td class="mono">{{ d.current_version or '—' }}</td>
-        <td>
-          {% if current_user.role == 'admin' %}
-          <form action="{{ url_for('set_device_mac', device_id=d.device_id) }}" method="post" class="inline">
-  {{ csrf_input() }}
-            <input type="text" name="mac_address" value="{{ d.mac_address or '' }}" placeholder="AA:BB:CC:DD:EE:FF"
-                   class="mono" style="width:135px;display:inline-block;"
-                   aria-label="{{ _('MAC address for {device}', device=d.device_id) }}">
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Save MAC address for {device}', device=d.device_id) }}">{{ _("Save") }}</button>
-          </form>
-          <form action="{{ url_for('wake_device_ui', device_id=d.device_id) }}" method="post" class="inline">
-  {{ csrf_input() }}
-            <button class="btn btn-quiet" type="submit" aria-label="{{ _('Wake {device}', device=d.device_id) }}" {{ 'disabled' if not d.mac_address }}>{{ _("Wake") }}</button>
-          </form>
-          {% else %}
-            {{ d.mac_address or '—' }}
-          {% endif %}
-        </td>
-        <td class="mono">{{ d.last_seen_at[:19].replace('T', ' ') if d.last_seen_at else _('never') }}
-          {% if d.last_seen_address %}<div class="subtitle" style="margin:0;">{{ _("from {address}", address=d.last_seen_address) }}</div>{% endif %}</td>
-        <td class="mono">{{ d.enrolled_at[:10] }}</td>
-      </tr>
-      {% endfor %}
+      <thead>
+        <tr>
+          <th scope="col">{{ _("Device ID") }}</th>
+          <th scope="col">{{ _("Display Name") }}</th>
+          <th scope="col">{{ _("Policy Group") }}</th>
+          <th scope="col">{{ _("Version & MAC") }}</th>
+          <th scope="col">{{ _("Status & Last Seen") }}</th>
+          <th scope="col">{{ _("Shared Access") }}</th>
+          <th scope="col">{{ _("Actions") }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in devices %}
+        <tr>
+          <td class="mono">
+            <strong>{{ d.device_id }}</strong>
+            {% if d.revoked_at %}
+              <br><span class="badge badge-danger">{{ _("REVOKED") }}</span>
+            {% else %}
+              <br><span class="badge badge-neutral">{{ _("ACTIVE") }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if has_perm('device.update') %}
+            <form action="{{ url_for('rename_device', device_id=d.device_id) }}" method="post" style="display:flex; gap:4px; align-items:center;">
+              {{ csrf_input() }}
+              <input type="text" name="display_name" value="{{ d.display_name }}" style="width:140px; padding:4px 8px; font-size:0.9em;" aria-label="{{ _('Display name for {device}', device=d.device_id) }}">
+              <button class="btn btn-quiet" type="submit" style="padding:4px 8px; font-size:0.85em;">{{ _("Save") }}</button>
+            </form>
+            {% else %}
+              {{ d.display_name }}
+            {% endif %}
+          </td>
+          <td>
+            {% if has_perm('device.update') %}
+            <form action="{{ url_for('set_device_group', device_id=d.device_id) }}" method="post" style="display:flex; gap:4px; align-items:center;">
+              {{ csrf_input() }}
+              <select name="group_id" style="width:auto; padding:4px 8px; font-size:0.9em;" aria-label="{{ _('Group for {device}', device=d.device_id) }}">
+                {% for g in groups %}
+                  <option value="{{ g.id }}" {{ 'selected' if g.id == d.group_id }}>{{ g.name }}</option>
+                {% endfor %}
+              </select>
+              <button class="btn btn-quiet" type="submit" style="padding:4px 8px; font-size:0.85em;">{{ _("Move") }}</button>
+            </form>
+            {% else %}
+              {{ d.group_name }}
+            {% endif %}
+          </td>
+          <td>
+            <div class="mono" style="font-size:0.9em;">v{{ d.current_version or '—' }}</div>
+            {% if has_perm('device.update') %}
+            <form action="{{ url_for('set_device_mac', device_id=d.device_id) }}" method="post" style="display:flex; gap:4px; margin-top:4px;">
+              {{ csrf_input() }}
+              <input type="text" name="mac_address" value="{{ d.mac_address or '' }}" placeholder="AA:BB:CC:DD:EE:FF" aria-label="{{ _('MAC Address') }}" class="mono" style="width:130px; padding:4px 6px; font-size:0.85em;">
+              <button class="btn btn-quiet" type="submit" style="padding:4px 6px; font-size:0.8em;">{{ _("Save MAC") }}</button>
+            </form>
+            {% else %}
+              <span class="mono" style="font-size:0.85em; color:var(--muted);">{{ d.mac_address or '—' }}</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="mono" style="font-size:0.85em;">{{ d.last_seen_at[:19].replace('T', ' ') if d.last_seen_at else _('never') }}</div>
+            {% if d.last_seen_address %}<small style="color:var(--muted);">from {{ d.last_seen_address }}</small>{% endif %}
+          </td>
+          <td>
+            {% if d.shares %}
+              <div style="font-size:0.85em;">
+                {% for s in d.shares %}
+                  <span class="badge badge-neutral" style="margin-bottom:2px; display:inline-flex; align-items:center; gap:4px;">
+                    {{ s.username }} ({{ s.permission_level }})
+                    {% if has_perm('device.share') %}
+                    <form action="{{ url_for('unshare_device_ui', device_id=d.device_id) }}" method="post" style="display:inline;">
+                      {{ csrf_input() }}
+                      <input type="hidden" name="user_id" value="{{ s.user_id }}">
+                      <button type="submit" style="background:none; border:none; color:var(--muted); cursor:pointer; font-size:10px; padding:0;" title="{{ _('Remove share') }}">&times;</button>
+                    </form>
+                    {% endif %}
+                  </span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <small style="color:var(--muted);">{{ _("Private") }}</small>
+            {% endif %}
+
+            {% if has_perm('device.share') %}
+            <form action="{{ url_for('share_device_ui', device_id=d.device_id) }}" method="post" style="display:flex; gap:4px; margin-top:4px;">
+              {{ csrf_input() }}
+              <input type="text" name="username" placeholder="Username" aria-label="{{ _('Share Username') }}" style="width:90px; padding:2px 6px; font-size:0.8em;">
+              <select name="permission_level" aria-label="{{ _('Permission Level') }}" style="font-size:0.8em; padding:2px;">
+                <option value="read">Read</option>
+                <option value="connect">Connect</option>
+              </select>
+              <button class="btn btn-quiet" type="submit" style="padding:2px 6px; font-size:0.8em;">{{ _("Share") }}</button>
+            </form>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+              {% if has_perm('device.wake') %}
+              <form action="{{ url_for('wake_device_ui', device_id=d.device_id) }}" method="post" style="display:inline;">
+                {{ csrf_input() }}
+                <button class="btn btn-quiet" type="submit" aria-label="{{ _('Wake {device}', device=d.device_id) }}" {{ 'disabled' if not d.mac_address }}>{{ _("WOL Wake") }}</button>
+              </form>
+              {% endif %}
+
+              {% if has_perm('device.revoke') %}
+                {% if d.revoked_at %}
+                <form action="{{ url_for('restore_device_ui', device_id=d.device_id) }}" method="post" style="display:inline;">
+                  {{ csrf_input() }}
+                  <button class="btn btn-quiet" type="submit">{{ _("Restore") }}</button>
+                </form>
+                {% else %}
+                <form action="{{ url_for('revoke_device_ui', device_id=d.device_id) }}" method="post" style="display:inline;" onsubmit="return confirm({{ _('Revoke relay access for {device}?', device=d.device_id)|tojson }});">
+                  {{ csrf_input() }}
+                  <button class="btn btn-quiet" type="submit" style="color:var(--danger, #ff4d4f);">{{ _("Revoke") }}</button>
+                </form>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
     {% else %}
       <div class="empty">{{ _("No devices enrolled yet. Run a host with {admin_url} and {enrollment_key} to enroll one.", admin_url="<code>--admin-url</code>"|safe, enrollment_key="<code>--enrollment-key</code>"|safe) }}</div>

@@ -11,7 +11,7 @@
 
 <!-- Fee Settings Panel -->
 <div class="panel" style="margin-bottom: 24px;">
-  <h2 style="font-size: 16px; margin-bottom: 12px;">⚙️ {{ _("Platform Commission & Fee Configuration") }}</h2>
+  <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Platform Commission & Fee Configuration") }}</h2>
   <form action="{{ url_for('marketplace_web.admin_update_fee_settings') }}" method="post" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
     <div>
       <label for="percentage">{{ _("Fee Percentage (%)") }}</label>
@@ -39,7 +39,7 @@
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
   <!-- Providers Moderation -->
   <div class="panel">
-    <h2 style="font-size: 16px; margin-bottom: 12px;">👥 {{ _("Provider Verification & Status") }} ({{ providers|length }})</h2>
+    <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Provider Verification & Status") }} ({{ providers|length }})</h2>
     <div class="table-wrap">
       <table>
         <thead>
@@ -59,7 +59,7 @@
                 {{ p.verification_status.upper() }}
               </span>
             </td>
-            <td>★ {{ p.average_rating }}</td>
+            <td>Rating: {{ p.average_rating }}</td>
             <td>
               <form action="{{ url_for('marketplace_web.admin_verify_provider', id=p.id) }}" method="post" style="display: inline;">
                 <input type="hidden" name="status" value="{% if p.verification_status == 'verified' %}unverified{% else %}verified{% endif %}">
@@ -77,7 +77,7 @@
 
   <!-- Categories Management -->
   <div class="panel">
-    <h2 style="font-size: 16px; margin-bottom: 12px;">📁 {{ _("Marketplace Categories") }}</h2>
+    <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("Marketplace Categories") }}</h2>
     <form action="{{ url_for('marketplace_web.admin_create_category') }}" method="post" style="display: flex; gap: 8px; margin-bottom: 16px;">
       <input type="text" name="name" required placeholder="{{ _('New category name...') }}" style="flex: 1;">
       <button type="submit" class="btn btn-sm">+ {{ _("Add") }}</button>
@@ -96,7 +96,7 @@
 
 <!-- Orders & Reports Moderation -->
 <div class="panel">
-  <h2 style="font-size: 16px; margin-bottom: 12px;">📄 {{ _("All Orders & Disputes") }} ({{ orders|length }})</h2>
+  <h2 style="font-size: 16px; margin-bottom: 12px;">{{ _("All Orders & Disputes") }} ({{ orders|length }})</h2>
   <div class="table-wrap">
     <table>
       <thead>

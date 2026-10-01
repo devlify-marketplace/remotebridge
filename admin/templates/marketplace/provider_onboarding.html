@@ -3,7 +3,9 @@
 
 {% block content %}
 <div class="panel" style="max-width: 640px; margin: 40px auto; text-align: center; padding: 36px;">
-  <div style="font-size: 48px; margin-bottom: 16px;">⚡</div>
+  <div style="margin-bottom: 16px; color: var(--accent-strong);">
+    <svg viewBox="0 0 24 24" width="48" height="48" stroke="currentColor" stroke-width="2" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  </div>
   <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 12px;">{{ _("Offer Your Technical IT Services") }}</h1>
   <p class="subtitle" style="font-size: 15px; margin-bottom: 24px; line-height: 1.6;">
     {{ _("Monetize your technical skills on the RemoteBridge platform. Provide remote support, network troubleshooting, and server management directly to customers globally.") }}
@@ -25,7 +27,7 @@
   </div>
 
   <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn" style="padding: 12px 28px; font-size: 15px;">
-    🚀 {{ _("Create Provider Profile Now") }}
+    {{ _("Create Provider Profile Now") }}
   </a>
 </div>
 {% endblock %}

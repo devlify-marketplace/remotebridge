@@ -17,7 +17,8 @@
   
   <div style="margin-top: 20px;">
     <a href="{{ url_for('marketplace_web.edit_provider_profile') }}" class="btn btn-quiet" style="font-size: 13.5px;">
-      ⚡ {{ _("Become a Remote IT Provider") }}
+      <svg class="nav-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" style="vertical-align:middle; margin-right:4px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      {{ _("Become a Remote IT Provider") }}
     </a>
   </div>
 </div>
@@ -30,8 +31,20 @@
 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
   {% for cat in categories %}
   <a href="{{ url_for('marketplace_web.services_catalog', category_id=cat.id) }}" class="panel" style="display: block; padding: 18px; text-decoration: none; color: inherit; transition: transform 0.15s ease;">
-    <div style="font-size: 24px; margin-bottom: 8px;">
-      {% if cat.icon == 'monitor' %}💻{% elif cat.icon == 'server' %}🖥️{% elif cat.icon == 'globe' %}🌐{% elif cat.icon == 'shield' %}🛡️{% elif cat.icon == 'database' %}💾{% else %}🔧{% endif %}
+    <div style="margin-bottom: 8px; color: var(--accent-strong);">
+      {% if cat.icon == 'monitor' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      {% elif cat.icon == 'server' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      {% elif cat.icon == 'globe' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      {% elif cat.icon == 'shield' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      {% elif cat.icon == 'database' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      {% else %}
+        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      {% endif %}
     </div>
     <div style="font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 4px;">{{ cat.name }}</div>
     <div style="font-size: 12.5px; color: var(--text-dim);">{{ cat.description }}</div>
@@ -58,9 +71,9 @@
             {{ srv.provider_name }}
           </a>
           {% if srv.verification_status == 'verified' %}
-          <span title="{{ _('Verified Provider') }}" style="color: var(--ok);">✓</span>
+          <span class="badge badge-ok" style="font-size:10px; padding:1px 4px;">VERIFIED</span>
           {% endif %}
-          <div style="font-size: 12px; color: var(--text-dim);">★ {{ srv.provider_rating }} ({{ srv.provider_reviews }})</div>
+          <div style="font-size: 12px; color: var(--text-dim);">Rating: {{ srv.provider_rating }} ({{ srv.provider_reviews }})</div>
         </div>
       </div>
       
@@ -73,7 +86,7 @@
     </div>
     
     <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--panel-border);">
-      <div style="font-size: 12px; color: var(--text-dim);">⏱️ {{ srv.estimated_minutes }} mins</div>
+      <div style="font-size: 12px; color: var(--text-dim);">Est: {{ srv.estimated_minutes }} mins</div>
       <div style="font-size: 17px; font-weight: 800; color: var(--accent-strong);">
         ${{ srv.price }} <span style="font-size: 11px; font-weight: 400;">{{ srv.pricing_type }}</span>
       </div>
@@ -96,11 +109,11 @@
     <h3 style="font-size: 15px; margin: 0 0 4px;">
       <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}">{{ prov.display_name }}</a>
       {% if prov.verification_status == 'verified' %}
-      <span style="color: var(--ok);">✓</span>
+      <span class="badge badge-ok" style="font-size:10px; padding:1px 4px;">VERIFIED</span>
       {% endif %}
     </h3>
     <div style="font-size: 12.5px; color: var(--text-dim); margin-bottom: 8px;">{{ prov.headline or _("IT Specialist") }}</div>
-    <div style="font-size: 12px; margin-bottom: 12px;">★ {{ prov.average_rating }} ({{ prov.review_count }} {{ _("reviews") }}) • {{ prov.completed_jobs }} {{ _("jobs") }}</div>
+    <div style="font-size: 12px; margin-bottom: 12px;">Rating: {{ prov.average_rating }} ({{ prov.review_count }} {{ _("reviews") }}) • {{ prov.completed_jobs }} {{ _("jobs") }}</div>
     <a href="{{ url_for('marketplace_web.provider_profile', username=prov.username) }}" class="btn btn-quiet btn-sm">{{ _("View Profile") }}</a>
   </div>
   {% endfor %}

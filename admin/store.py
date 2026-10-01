@@ -216,6 +216,18 @@ _SCHEMA = """
             last_seen_address TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS device_shares (
+            id {PK},
+            device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            permission_level TEXT NOT NULL DEFAULT 'read',
+            granted_by INTEGER REFERENCES users(id),
+            created_at TEXT NOT NULL,
+            UNIQUE(device_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_device_shares_dev ON device_shares(device_id);
+        CREATE INDEX IF NOT EXISTS idx_device_shares_user ON device_shares(user_id);
+
         CREATE TABLE IF NOT EXISTS session_events (
             id {PK},
             device_id TEXT NOT NULL,
@@ -780,6 +792,9 @@ def list_admin_users(conn) -> list:
     for r in rows:
         d = dict(r)
         d["role"] = rbac.get_user_role(conn, d["id"])
+        admin_u = conn.execute("SELECT totp_enabled FROM admin_users WHERE id = ? OR username = ?", (d["id"], d["username"])).fetchone()
+        if admin_u:
+            d["totp_enabled"] = admin_u["totp_enabled"]
         res.append(d)
     return res
 
@@ -1161,6 +1176,45 @@ def set_device_mac_address(conn, device_id: str, mac_address: str) -> None:
     conn.execute("UPDATE devices SET mac_address = ? WHERE device_id = ?",
                  (mac_address.strip(), device_id))
     conn.commit()
+
+
+def share_device(conn, device_id: str, user_id: int, permission_level: str = "read", granted_by: int = None) -> None:
+    now = _now_iso()
+    conn.execute(
+        """INSERT INTO device_shares (device_id, user_id, permission_level, granted_by, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(device_id, user_id) DO UPDATE SET permission_level = excluded.permission_level""",
+        (device_id, user_id, permission_level, granted_by, now)
+    )
+    conn.commit()
+
+
+def unshare_device(conn, device_id: str, user_id: int) -> None:
+    conn.execute("DELETE FROM device_shares WHERE device_id = ? AND user_id = ?", (device_id, user_id))
+    conn.commit()
+
+
+def list_device_shares(conn, device_id: str) -> list:
+    rows = conn.execute(
+        """SELECT ds.*, u.username, u.display_name
+           FROM device_shares ds
+           JOIN users u ON ds.user_id = u.id
+           WHERE ds.device_id = ?""",
+        (device_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_user_shared_devices(conn, user_id: int) -> list:
+    rows = conn.execute(
+        """SELECT d.*, ds.permission_level, g.name as group_name
+           FROM device_shares ds
+           JOIN devices d ON ds.device_id = d.device_id
+           JOIN groups g ON d.group_id = g.id
+           WHERE ds.user_id = ?""",
+        (user_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # --- Session history ---------------------------------------------------
