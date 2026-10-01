@@ -388,6 +388,17 @@ class RelayServer:
         out["uptime_seconds"] = round(time.time() - self._started, 1)
         return out
 
+    def prometheus_metrics(self) -> str:
+        s = self.stats()
+        lines = []
+        for k, v in s.items():
+            metric_name = f"remotebridge_relay_{k}"
+            lines.append(f"# HELP {metric_name} Relay stat {k}")
+            lines.append(f"# TYPE {metric_name} gauge")
+            lines.append(f"{metric_name} {v}")
+        return "\n".join(lines) + "\n"
+
+
     def _log(self, msg: str) -> None:
         if not self.quiet:
             print(f"[relay] {msg}", flush=True)
@@ -482,6 +493,11 @@ class RelayServer:
         elif command == "STATS" and not name:
             if self.stats_open or addr[0] in ("127.0.0.1", "::1"):
                 self._reply_and_close(conn, (json.dumps(self.stats()) + "\n").encode())
+            else:
+                self._reply_and_close(conn, b"ERROR forbidden\n")
+        elif command == "METRICS" and not name:
+            if self.stats_open or addr[0] in ("127.0.0.1", "::1"):
+                self._reply_and_close(conn, self.prometheus_metrics().encode("utf-8"))
             else:
                 self._reply_and_close(conn, b"ERROR forbidden\n")
         else:

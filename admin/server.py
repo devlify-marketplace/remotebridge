@@ -80,6 +80,23 @@ def healthz():
     return "ok", 200, {"Content-Type": "text/plain", "Cache-Control": "no-store"}
 
 
+@app.route("/metrics")
+def metrics():
+    """Prometheus metrics scraper endpoint."""
+    conn = get_db()
+    summary = store.usage_summary(conn)
+    lines = [
+        f"# HELP remotebridge_admin_devices_total Total registered devices",
+        f"# TYPE remotebridge_admin_devices_total gauge",
+        f"remotebridge_admin_devices_total {summary.get('devices', 0)}",
+        f"# HELP remotebridge_admin_sessions_total Total session events recorded",
+        f"# TYPE remotebridge_admin_sessions_total gauge",
+        f"remotebridge_admin_sessions_total {summary.get('sessions', 0)}",
+    ]
+    return "\n".join(lines) + "\n", 200, {"Content-Type": "text/plain; version=0.0.4"}
+
+
+
 # --- Per-request DB connection (Flask's standard per-request pattern) ---
 
 def get_db():
@@ -730,6 +747,16 @@ def deployment():
     return render_template("deployment.html", branding=store.get_branding(conn),
                             release=store.get_release(conn),
                             org_enrollment_key=store.get_setting(conn, "org_enrollment_key"))
+
+
+@app.route("/relays")
+@admin_required
+def relay_fleet():
+    relays = [
+        {"name": "Default Relay Node", "address": "127.0.0.1:6000", "active_sessions": 0, "status": "Online", "last_seen": "Just now"}
+    ]
+    return render_template("relays.html", relays=relays)
+
 
 
 # --- Device-facing JSON API -------------------------------------------------

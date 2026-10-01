@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ _("Relay Fleet") }}{% endblock %}
+
+{% block content %}
+<div class="header-row">
+  <h1>{{ _("Relay Fleet & Health") }}</h1>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h2>{{ _("Registered Relays") }}</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>{{ _("Relay Node") }}</th>
+        <th>{{ _("Address") }}</th>
+        <th>{{ _("Active Sessions") }}</th>
+        <th>{{ _("Status") }}</th>
+        <th>{{ _("Last Heartbeat") }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for relay in relays %}
+      <tr>
+        <td><strong>{{ relay.name }}</strong></td>
+        <td><code>{{ relay.address }}</code></td>
+        <td>{{ relay.active_sessions }}</td>
+        <td><span class="badge badge-ok">{{ relay.status }}</span></td>
+        <td>{{ relay.last_seen }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="text-muted">{{ _("No custom relay nodes reported yet. Default relay: 127.0.0.1:6000") }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
