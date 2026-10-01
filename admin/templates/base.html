@@ -9,13 +9,14 @@
 <body>
   <a class="skip-link" href="#main">{{ _("Skip to main content") }}</a>
   
-  <!-- Mobile Header Bar -->
+  <!-- Mobile Header Bar (Pure CSS Navigation Drawer - No JS needed) -->
+  <input type="checkbox" id="mobile-nav-toggle" class="mobile-nav-checkbox" aria-hidden="true">
   <div class="mobile-header">
     <div class="mobile-brand"><strong>{{ branding.display_name }}</strong> {{ _("Admin Console") }}</div>
-    <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="{{ _('Toggle Navigation') }}">
+    <label for="mobile-nav-toggle" class="mobile-nav-toggle" aria-label="{{ _('Toggle Navigation') }}">
       <svg class="nav-icon" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       {{ _("Menu") }}
-    </button>
+    </label>
   </div>
 
   <div class="layout">
@@ -24,11 +25,7 @@
       <nav class="nav" aria-label="{{ _('Main') }}">
         {% macro nav_link(endpoint, label, active_endpoints, svg_path) %}
           {% set active = request.endpoint in active_endpoints %}
-          <a href="{{ url_for(endpoint) }}" class="{{ 'active' if active }}"{% if active %} aria-current="page"{% endif %}>
-            <svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">{{ svg_path|safe }}</svg>
-            <span>{{ label }}</span>
-            {{ caller() if caller }}
-          </a>
+          <a href="{{ url_for(endpoint) }}" class="{{ 'active' if active }}"{% if active %} aria-current="page"{% endif %}><svg class="nav-icon" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">{{ svg_path|safe }}</svg><span>{{ label }}</span>{{ caller() if caller }}</a>
         {% endmacro %}
 
         {{ nav_link('dashboard', _("Dashboard"), ('dashboard',), '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>') }}
@@ -64,14 +61,5 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-
-  <script>
-    function toggleMobileNav() {
-      var sb = document.getElementById('sidebarNav');
-      if (sb) {
-        sb.classList.toggle('active');
-      }
-    }
-  </script>
 </body>
 </html>

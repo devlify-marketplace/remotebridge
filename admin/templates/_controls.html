@@ -11,8 +11,8 @@
   </form>
   
   <div class="theme-toggle-bar" style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
-    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'dark' or theme == 'auto' }}" href="{{ url_for('set_theme', theme='dark', next=request.full_path.rstrip('?')) }}">🌙 {{ _("Dark") }}</a>
-    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'light' }}" href="{{ url_for('set_theme', theme='light', next=request.full_path.rstrip('?')) }}">☀️ {{ _("Light") }}</a>
-    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'contrast' }}" href="{{ url_for('set_theme', theme='contrast', next=request.full_path.rstrip('?')) }}">⚡ {{ _("Contrast") }}</a>
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'dark' or theme == 'auto' }}" href="{{ url_for('set_theme', theme='dark', next=request.full_path.rstrip('?')) }}">{{ _("Dark") }}</a>
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'light' }}" href="{{ url_for('set_theme', theme='light', next=request.full_path.rstrip('?')) }}">{{ _("Light") }}</a>
+    <a class="btn btn-quiet btn-sm {{ 'active-theme' if theme == 'contrast' }}" href="{{ url_for('set_theme', theme='contrast', next=request.full_path.rstrip('?')) }}">{{ _("Contrast") }}</a>
   </div>
 </div>
